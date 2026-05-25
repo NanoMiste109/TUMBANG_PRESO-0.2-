@@ -1,0 +1,18 @@
+{
+  "achievements": {
+    "clear_level_1": true,
+    "clear_level_2": true,
+    "clear_level_4": false
+  },
+  "unlocked_levels": [
+    1,
+    2,
+    3,
+    4
+  ],
+  "unlocked_characters": [
+    0,
+    1,
+    2
+  ]
+}

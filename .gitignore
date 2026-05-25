@@ -1,0 +1,14 @@
+__pycache__/
+*.pyc
+venv/
+.env
+build/
+dist/
+*.spec
+
+# VS Code / Cursor
+.vscode/
+
+# OS junk
+.DS_Store
+Thumbs.db
