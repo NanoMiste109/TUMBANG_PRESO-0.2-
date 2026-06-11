@@ -12,6 +12,7 @@ from screens.pause_screen import PauseScreen
 from screens.character_select_screen import CharacterSelectScreen
 from screens.name_entry_screen import NameEntryScreen
 from screens.leaderboard_screen import LeaderboardScreen
+from screens.achievement_screen import AchievementScreen
 from screens.intro_screen import IntroScreen
 from entities.clouds import Clouds
 from entities.background import ParallaxBackground
@@ -38,6 +39,7 @@ class Game:
             "credits": CreditsScreen(self),
             "settings": SettingsScreen(self),
             "leaderboard": LeaderboardScreen(self),
+            "achievements": AchievementScreen(self),
         }
         self.pause = PauseScreen(self)
         self._fade_alpha   = 0
@@ -48,6 +50,19 @@ class Game:
 
     def start_fade(self, target_state):
         """Trigger a fade-to-black then fade-in transition to target_state."""
+        # BGM transition — swap music before the visual fade begins
+        try:
+            if target_state == "gameplay":
+                lvl = self.manager.current_level
+                bgm_path = self.assets.bgm_level_paths.get(lvl, self.assets.bgm_gameplay_path)
+                pygame.mixer.music.load(bgm_path)
+                pygame.mixer.music.play(-1)
+            elif self.manager.game_state == "gameplay":
+                # leaving gameplay → restore menu BGM
+                pygame.mixer.music.load(self.assets.bgm_menu_path)
+                pygame.mixer.music.play(-1)
+        except Exception:
+            pass  # best-effort; never crash on audio
         self._fade_target = target_state
         self._fade_state  = "out"
         self._fade_alpha  = 0

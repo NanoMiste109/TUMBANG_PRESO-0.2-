@@ -1,11 +1,12 @@
 import pygame
 from resource_path import resource_path
+from utils.text import TextProvider
 
 
 class PauseScreen:
 
     ITEMS   = ["resume", "howtoplay", "settings", "exit"]
-    SLIDERS = ["MUSIC", "SOUND", "SFX", "SENSITIVITY"]
+    SLIDERS = ["MUSIC", "SOUND", "SFX"]
 
     def __init__(self, game):
         self.game   = game
@@ -27,7 +28,7 @@ class PauseScreen:
         self.slider_values = game.manager.settings
         self.bar_rects = [
             a.slider_bar.get_rect(center=(cx, top + i * spacing))
-            for i in range(4)
+            for i in range(3)
         ]
 
         self.dragging = None
@@ -41,6 +42,12 @@ class PauseScreen:
             ("WATCH OUT", "Avoid the guard!"),
             ("LEVEL UP",  "Attain points to proceed\nto next level"),
         ]
+
+    _SLIDER_KEYS = {
+        "MUSIC": "settings.music",
+        "SOUND": "settings.sound",
+        "SFX":   "settings.sfx",
+    }
 
     def toggle(self):
         self.active = not self.active
@@ -142,6 +149,12 @@ class PauseScreen:
                 elif self.SLIDERS[self.dragging] == "SFX":
                     a.sfx_whoosh.set_volume(val / 100.0)
                     a.sfx_can_hit.set_volume(val / 100.0)
+                    if hasattr(a, "sfx_level_cleared"):
+                        a.sfx_level_cleared.set_volume(val / 100.0)
+                    if hasattr(a, "sfx_level_failed"):
+                        a.sfx_level_failed.set_volume(val / 100.0)
+                    if hasattr(a, "sfx_miss"):
+                        a.sfx_miss.set_volume(val / 100.0)
         else:
             self.dragging = None
 
@@ -207,7 +220,9 @@ class PauseScreen:
         for i, name in enumerate(self.SLIDERS):
             bar_rect = self.bar_rects[i]
             val   = self.slider_values[name]
-            label = a.settings_font.render(f"{name}: {val}", True, (255, 255, 255))
+            lang  = self.game.manager.settings.get("LANGUAGE", "EN")
+            label_text = f"{TextProvider.get(self._SLIDER_KEYS[name], lang)}: {val}"
+            label = a.settings_font.render(label_text, True, (255, 255, 255))
             surface.blit(label, (bar_rect.left, bar_rect.top - 14))
             surface.blit(a.slider_bar, bar_rect)
             kx = self._knob_x(i)

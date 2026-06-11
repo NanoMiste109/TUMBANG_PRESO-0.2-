@@ -25,6 +25,7 @@ class Guard(GameObject):
         self.anim_timer = 0
         self.dir        = 1
         self._move_dir  = "horizontal"
+        self._stun_timer = 0   # frames remaining in stun (0 = not stunned)
 
         def load_sheet(path):
             sheet = pygame.image.load(resource_path(path)).convert_alpha()
@@ -44,10 +45,24 @@ class Guard(GameObject):
         self.y = float(self.WAYPOINTS[0][1])
         self.wp_index = 1
         self.rect = pygame.Rect(int(self.x), int(self.y), self.frame_w, self.frame_h)
+        # Initialise mask so mask_hit() works before the first update() call
+        self.mask = pygame.mask.from_surface(self.frames_walk[0])
+
+    def stun(self, frames: int = 180):
+        """Freeze the guard for the given number of frames."""
+        self._stun_timer = frames
+
+    @property
+    def is_stunned(self) -> bool:
+        return self._stun_timer > 0
 
     # ── Method Overriding (GameObject.update) ───────────────────────────────
     def update(self, player=None, **kwargs):
-        """Override: patrol waypoints and advance animation."""
+        """Override: patrol waypoints and advance animation. Pauses when stunned."""
+        if self._stun_timer > 0:
+            self._stun_timer -= 1
+            return  # frozen
+
         tx, ty = self.WAYPOINTS[self.wp_index]
         cx = self.x + self.frame_w // 2
         dx = tx - cx
@@ -76,7 +91,6 @@ class Guard(GameObject):
     # ── Method Overriding (GameObject.draw) ─────────────────────────────────
     def draw(self, surface):
         """Override: render guard sprite based on current movement direction."""
-        self._draw_path(surface)
         if self._move_dir == "up":
             frame = self.frames_up[self.anim_frame]
         elif self._move_dir == "down":
@@ -90,9 +104,8 @@ class Guard(GameObject):
         
     # ── Method Overriding (GameObject.interact) ──────────────────────────────
     def interact(self, other=None):
-        """Override: guard reacts to being hit by a slipper — stops briefly."""
-        # Placeholder for future stun/reaction behaviour.
-        pass
+        """Override: guard reacts to being hit by a slipper."""
+        pass  # stun is applied externally via guard.stun()
 
     def _draw_path(self, surface):
         pts = self.WAYPOINTS

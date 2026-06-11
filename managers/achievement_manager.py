@@ -10,9 +10,11 @@ class AchievementDef:
     name: str
     description: str
     unlocks_character: Optional[int] = None  # character index
+    unlocks_slipper:   Optional[int] = None  # slipper index
 
 
 DEFAULT_ACHIEVEMENTS = [
+    # ── Character unlocks ────────────────────────────────────────────────────
     AchievementDef(
         id="clear_level_1",
         name="Barangay Rookie",
@@ -31,24 +33,36 @@ DEFAULT_ACHIEVEMENTS = [
         description="Clear Level 4.",
         unlocks_character=3,  # Guard
     ),
+    # ── Slipper unlocks ──────────────────────────────────────────────────────
+    AchievementDef(
+        id="slipper_v2",
+        name="Proven on the Streets",
+        description="Clear Level 2 to unlock the Street Slipper.",
+        unlocks_slipper=1,
+    ),
+    AchievementDef(
+        id="slipper_v3",
+        name="Special Master",
+        description="Hit the can using a special skill 3 times (across any sessions).",
+        unlocks_slipper=2,
+    ),
+    AchievementDef(
+        id="slipper_v4",
+        name="Tumbang Preso Champion",
+        description="Clear Level 4 to unlock the Champion Slipper.",
+        unlocks_slipper=3,
+    ),
 ]
 
 
 class AchievementManager:
     """
-    Stores achievement unlocks inside GameManager.profile and triggers character unlocks.
-    Profile schema (stored in profile.json):
-      {
-        "unlocked_levels": [1,2],
-        "unlocked_characters": [0,1],
-        "achievements": {"clear_level_1": true, ...}
-      }
+    Stores achievement unlocks inside GameManager.profile and triggers unlocks.
     """
 
     def __init__(self, game_manager):
         self.mgr = game_manager
         self.defs: Dict[str, AchievementDef] = {a.id: a for a in DEFAULT_ACHIEVEMENTS}
-        # ensure keys exist
         prof = self.mgr.profile
         prof.setdefault("achievements", {})
         for a in self.defs:
@@ -68,6 +82,8 @@ class AchievementManager:
         ach = self.defs[achievement_id]
         if ach.unlocks_character is not None:
             self.mgr.unlock_character(ach.unlocks_character)
+        if ach.unlocks_slipper is not None:
+            self.mgr.unlock_slipper(ach.unlocks_slipper)
 
         self.mgr.save_profile()
         return True
@@ -77,6 +93,17 @@ class AchievementManager:
             self.unlock("clear_level_1")
         elif level == 2:
             self.unlock("clear_level_2")
+            self.unlock("slipper_v2")   # same condition
         elif level == 4:
             self.unlock("clear_level_4")
+            self.unlock("slipper_v4")   # same condition
+
+    def on_special_hit(self):
+        """Call when the player hits the can with a special active."""
+        prof = self.mgr.profile
+        count = prof.get("special_hits", 0) + 1
+        prof["special_hits"] = count
+        self.mgr.save_profile()
+        if count >= 3:
+            self.unlock("slipper_v3")
 

@@ -4,32 +4,41 @@ from entities.game_object import GameObject
 
 
 # Sprite sheet paths per character index.
-# Replace the placeholder paths with real assets when they're ready.
+# Drop the named files into ASSETS/PLAYER/ and they will be picked up automatically.
+# When a file is absent the loader falls back to Jose's existing working assets.
 CHARACTER_SHEETS = {
-    0: {  # Jose — current character
-        "right": "ASSETS/PLAYER/59c4581d-e891-4fba-a679-041e4ac54a34-removebg-preview.png",
-        "up":    "ASSETS/PLAYER/upward walk.png",
-        "down":  "ASSETS/PLAYER/downward walk.png",
-        "throw": "ASSETS/PLAYER/throw.png",
+    0: {  # Jose — uses existing working assets via fallback
+        "right": "ASSETS/PLAYER/jose_right.png",
+        "up":    "ASSETS/PLAYER/jose_up.png",
+        "down":  "ASSETS/PLAYER/jose_down.png",
+        "throw": "ASSETS/PLAYER/jose_throw.png",
     },
-    1: {  # Maria — placeholder (reuses Jose until assets arrive)
-        "right": "ASSETS/PLAYER/59c4581d-e891-4fba-a679-041e4ac54a34-removebg-preview.png",
-        "up":    "ASSETS/PLAYER/upward walk.png",
-        "down":  "ASSETS/PLAYER/downward walk.png",
-        "throw": "ASSETS/PLAYER/throw.png",
+    1: {  # Bong
+        "right": "ASSETS/PLAYER/bong_horizontal.png",
+        "up":    "ASSETS/PLAYER/bong_upward.png",
+        "down":  "ASSETS/PLAYER/bong_downward.png",
+        "throw": "ASSETS/PLAYER/bong_throw.png",
     },
-    2: {  # Bong — placeholder
-        "right": "ASSETS/PLAYER/59c4581d-e891-4fba-a679-041e4ac54a34-removebg-preview.png",
-        "up":    "ASSETS/PLAYER/upward walk.png",
-        "down":  "ASSETS/PLAYER/downward walk.png",
-        "throw": "ASSETS/PLAYER/throw.png",
+    2: {  # Maria
+        "right": "ASSETS/PLAYER/maria_horizontal.png",
+        "up":    "ASSETS/PLAYER/maria_upward.png",
+        "down":  "ASSETS/PLAYER/maria_downward.png",
+        "throw": "ASSETS/PLAYER/maria_throw.png",
     },
-    3: {  # Guard — placeholder
-        "right": "ASSETS/PLAYER/59c4581d-e891-4fba-a679-041e4ac54a34-removebg-preview.png",
-        "up":    "ASSETS/PLAYER/upward walk.png",
-        "down":  "ASSETS/PLAYER/downward walk.png",
-        "throw": "ASSETS/PLAYER/throw.png",
+    3: {  # Guard
+        "right": "ASSETS/PLAYER/guard walking (1).png",
+        "up":    "ASSETS/PLAYER/guard upward (1).png",
+        "down":  "ASSETS/PLAYER/guard downward (1).png",
+        "throw": "ASSETS/PLAYER/guard rotation (2).png",
     },
+}
+
+# Fallback paths — Jose's existing working assets used when a named file is absent.
+_JOSE_FALLBACK = {
+    "right": "ASSETS/PLAYER/59c4581d-e891-4fba-a679-041e4ac54a34-removebg-preview.png",
+    "up":    "ASSETS/PLAYER/upward walk.png",
+    "down":  "ASSETS/PLAYER/downward walk.png",
+    "throw": "ASSETS/PLAYER/throw.png",
 }
 
 
@@ -58,21 +67,46 @@ class Player(GameObject):
 
         sheets = CHARACTER_SHEETS.get(character, CHARACTER_SHEETS[0])
 
-        def load_sheet(path, frames):
+        # Target height — match Jose's existing sprite height after 2x scale
+        # Jose's sheets are 68px tall → rendered at 68*2 = 136px
+        JOSE_H = 68
+        TARGET_H = int(JOSE_H * self.SCALE)
+
+        def load_sheet(path):
             sheet = pygame.image.load(resource_path(path)).convert_alpha()
-            fw = sheet.get_width() // frames
-            fh = sheet.get_height()
-            sw, sh = int(fw * self.SCALE), int(fh * self.SCALE)
-            return [pygame.transform.scale(sheet.subsurface((i*fw, 0, fw, fh)), (sw, sh))
+            sh = sheet.get_height()
+            # Detect frame count: width must divide evenly — try common counts
+            sw_raw = sheet.get_width()
+            # frame count = width / height (square frames), clamped to reality
+            frames = round(sw_raw / sh) if sh > 0 else 6
+            frames = max(1, frames)
+            fw = sw_raw // frames
+            # Scale so height matches Jose's target height
+            scale = TARGET_H / sh if sh > 0 else self.SCALE
+            dsw, dsh = int(fw * scale), int(sh * scale)
+            return [pygame.transform.scale(sheet.subsurface((i*fw, 0, fw, sh)), (dsw, dsh))
                     for i in range(frames)]
 
-        self.frames_right = load_sheet(sheets["right"], 6)
-        self.frames_up    = load_sheet(sheets["up"],    6)
-        self.frames_down  = load_sheet(sheets["down"],  6)
-        self.frames_throw = load_sheet(sheets["throw"], 6)
+        def load_sheet_with_fallback(key):
+            """Try the character-specific path; fall back to Jose's working asset."""
+            try:
+                return load_sheet(sheets[key])
+            except (FileNotFoundError, pygame.error):
+                return load_sheet(_JOSE_FALLBACK[key])
+
+        self.frames_right = load_sheet_with_fallback("right")
+        self.frames_up    = load_sheet_with_fallback("up")
+        self.frames_down  = load_sheet_with_fallback("down")
+        self.frames_throw = load_sheet_with_fallback("throw")
         self.frame_w = self.frames_right[0].get_width()
         self.frame_h = self.frames_right[0].get_height()
         self.rect    = pygame.Rect(self.x, self.y, self.frame_w, self.frame_h)
+
+        # Some character throw sheets face left by default — flip them on load
+        # Character indices whose throw sheet faces left: 2 (Maria)
+        _throw_faces_left = {2}
+        if character in _throw_faces_left:
+            self.frames_throw = [pygame.transform.flip(f, True, False) for f in self.frames_throw]
 
     def throw(self):
         self.is_throwing = True
@@ -101,6 +135,7 @@ class Player(GameObject):
             return
 
         # ── keyboard-driven movement branch ──
+        prev_dir = self._move_dir
         self.moving = False
         if keys[pygame.K_UP] and self.y > self.Y_MIN:
             self.y -= self.speed
@@ -124,6 +159,10 @@ class Player(GameObject):
             self.facing_right = True
             self._move_dir    = "right"
 
+        # reset frame counter when switching direction to avoid out-of-range index
+        if self._move_dir != prev_dir:
+            self.anim_frame = 0
+
         if self.x + self.frame_w > self.X_MAX:
             self.x = self.X_MAX - self.frame_w
         self.rect.topleft = (self.x, self.y)
@@ -140,6 +179,11 @@ class Player(GameObject):
             self.throw()
 
     def _update_anim(self):
+        # Only advance animation timer when actually moving or throwing
+        if not self.moving and not self.is_throwing:
+            self.anim_frame = 0
+            self.anim_timer = 0
+            return
         self.anim_timer += 1
         if self.anim_timer >= self.FRAME_DELAY:
             self.anim_timer = 0
@@ -149,21 +193,30 @@ class Player(GameObject):
                     self.is_throwing = False
                     self.anim_frame  = 0
             else:
-                self.anim_frame %= 6
+                # wrap based on actual frame count of the current walk direction
+                if self._move_dir == "up":
+                    self.anim_frame %= len(self.frames_up)
+                elif self._move_dir == "down":
+                    self.anim_frame %= len(self.frames_down)
+                else:
+                    self.anim_frame %= len(self.frames_right)
                 
     def draw(self, surface):
         self._update_anim()
         if self.is_throwing:
-            frame = self.frames_throw[self.anim_frame]
+            frame_list = self.frames_throw
         elif self.moving:
             if self._move_dir == "up":
-                frame = self.frames_up[self.anim_frame]
+                frame_list = self.frames_up
             elif self._move_dir == "down":
-                frame = self.frames_down[self.anim_frame]
+                frame_list = self.frames_down
             else:
-                frame = self.frames_right[self.anim_frame]
+                frame_list = self.frames_right
         else:
-            frame = self.frames_right[0]
+            frame_list = self.frames_right
+        # clamp anim_frame to the actual length of the current strip
+        idx = self.anim_frame % len(frame_list)
+        frame = frame_list[idx]
         if not self.facing_right and not self.is_throwing:
             frame = pygame.transform.flip(frame, True, False)
         surface.blit(frame, (self.x, self.y))

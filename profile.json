@@ -2,7 +2,10 @@
   "achievements": {
     "clear_level_1": true,
     "clear_level_2": true,
-    "clear_level_4": false
+    "clear_level_4": false,
+    "slipper_v2": false,
+    "slipper_v3": false,
+    "slipper_v4": false
   },
   "unlocked_levels": [
     1,
@@ -14,5 +17,9 @@
     0,
     1,
     2
-  ]
+  ],
+  "unlocked_slippers": [
+    0
+  ],
+  "special_hits": 0
 }
