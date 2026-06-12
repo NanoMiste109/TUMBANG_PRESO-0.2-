@@ -19,7 +19,7 @@ class LevelSelectScreen:
         self._mouse_pos = mouse_pos
         self._clicked = clicked
         if pygame.key.get_pressed()[pygame.K_ESCAPE]:
-            self.game.manager.change_state("menu")
+            self.game.manager.change_state("character_select")
         a = self.assets
         cx = self.board_rect.centerx
         unlocked = self.game.manager.unlocked_levels
@@ -40,8 +40,8 @@ class LevelSelectScreen:
         header_y = self.board_rect.top + 75
         surface.blit(a.level_select_header, a.level_select_header.get_rect(center=(cx, header_y)))
 
-        level_nums_normal  = [a.level_num_1,         a.level_num_2,         a.level_num_2,         a.level_num_2]
-        level_nums_hovered = [a.level_num_1_hovered, a.level_num_2_hovered, a.level_num_2_hovered, a.level_num_2_hovered]
+        level_nums_normal  = [a.level_num_1, a.level_num_2, a.level_num_3, a.level_num_4]
+        level_nums_hovered = [a.level_num_1_hovered, a.level_num_2_hovered, a.level_num_3_hovered, a.level_num_4_hovered]
 
         for i, lvl in enumerate([1, 2, 3, 4]):
             cy = self.slot_ys[i]

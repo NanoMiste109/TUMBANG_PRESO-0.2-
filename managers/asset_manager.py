@@ -1,4 +1,5 @@
 import pygame
+import os
 from resource_path import resource_path
 
 
@@ -91,6 +92,10 @@ class AssetManager:
         self.level_num_1_hovered = load_level("ASSETS/LEVEL/1(hovered).png")
         self.level_num_2         = load_level("ASSETS/LEVEL/2.png")
         self.level_num_2_hovered = load_level("ASSETS/LEVEL/2 (hovered).png")
+        self.level_num_3         = load_level("ASSETS/LEVEL/3.png")
+        self.level_num_3_hovered = load_level("ASSETS/LEVEL/3 (hovered).png")
+        self.level_num_4         = load_level("ASSETS/LEVEL/4.png")
+        self.level_num_4_hovered = load_level("ASSETS/LEVEL/4 (hovered).png")
         SETTINGS_SCALE = 0.38
         SLIDER_SCALE = 0.38
 
@@ -116,10 +121,10 @@ class AssetManager:
         }
 
         pause_hovered_paths = {
-            "resume":    resource_path("ASSETS/TEXT/HOVERED/GAME/Group 35.png"),
-            "howtoplay": resource_path("ASSETS/TEXT/HOVERED/GAME/Group 36.png"),
-            "settings":  resource_path("ASSETS/TEXT/HOVERED/GAME/Group 67.png"),
-            "exit":      resource_path("ASSETS/TEXT/HOVERED/GAME/Group 110.png"),
+            "resume":    resource_path("ASSETS/TEXT/HOVERED/GAME/hovered_resume.png"),
+            "howtoplay": resource_path("ASSETS/TEXT/HOVERED/GAME/hovered_howtoplay.png"),
+            "settings":  resource_path("ASSETS/TEXT/HOVERED/GAME/hovered_settings.png"),
+            "exit":      resource_path("ASSETS/TEXT/HOVERED/GAME/hovered_exit.png"),
         }
 
         self.pause_normal  = {}
@@ -127,16 +132,19 @@ class AssetManager:
 
         for key, path in pause_normal_paths.items():
             img = pygame.image.load(path).convert_alpha()
-            self.pause_normal[key] = pygame.transform.scale(img, (
-                int(img.get_width()  * PAUSE_SCALE),
-                int(img.get_height() * PAUSE_SCALE)
-            ))
+            nw = int(img.get_width()  * PAUSE_SCALE)
+            nh = int(img.get_height() * PAUSE_SCALE)
+            self.pause_normal[key] = pygame.transform.scale(img, (nw, nh))
 
         for key, path in pause_hovered_paths.items():
             img = pygame.image.load(path).convert_alpha()
+            # Match the height of the normal image, let width scale naturally
+            # so the slipper icon doesn't get squished
+            target_h = self.pause_normal[key].get_height()
+            scale = target_h / img.get_height() if img.get_height() > 0 else PAUSE_SCALE
             self.pause_hovered[key] = pygame.transform.scale(img, (
-                int(img.get_width()  * PAUSE_SCALE),
-                int(img.get_height() * PAUSE_SCALE)
+                int(img.get_width() * scale),
+                target_h
             ))
 
         # load per-level-cont UI assets
@@ -146,16 +154,16 @@ class AssetManager:
             img = pygame.image.load(resource_path(path)).convert_alpha()
             return pygame.transform.scale(img, (int(img.get_width() * CONT_SCALE), int(img.get_height() * CONT_SCALE)))
 
-        self.lc_cleared = load_cont("ASSETS/levelcont/LEVEL CLEARED!.png")
-        self.lc_failed  = load_cont("ASSETS/levelcont/LEVEL failed!.png")
+        self.lc_cleared = load_cont("ASSETS/LEVELCONT/LEVEL CLEARED!.png")
+        self.lc_failed  = load_cont("ASSETS/LEVELCONT/LEVEL failed!.png")
 
-        # buttons: unhovered 149=next, 145=retry, 150=menu  |  hovered 148=next, 146=retry, 151=menu
-        self.lc_btn_next_normal   = load_cont("ASSETS/levelcont/UNHOVERED/Group 149.png")
-        self.lc_btn_next_hovered  = load_cont("ASSETS/levelcont/HOVERED/Group 146.png")
-        self.lc_btn_menu_normal   = load_cont("ASSETS/levelcont/UNHOVERED/Group 145.png")
-        self.lc_btn_menu_hovered  = load_cont("ASSETS/levelcont/HOVERED/Group 148.png")
-        self.lc_btn_retry_normal  = load_cont("ASSETS/levelcont/UNHOVERED/Group 150.png")
-        self.lc_btn_retry_hovered = load_cont("ASSETS/levelcont/HOVERED/Group 151.png")
+        # Unhovered: 145=menu(home), 150=next, 149=retry  |  Hovered: 146=menu, 148=next, 151=retry
+        self.lc_btn_next_normal   = load_cont("ASSETS/LEVELCONT/UNHOVERED/Group 149.png")
+        self.lc_btn_next_hovered  = load_cont("ASSETS/LEVELCONT/HOVERED/Group 146.png")
+        self.lc_btn_menu_normal   = load_cont("ASSETS/LEVELCONT/UNHOVERED/Group 145.png")
+        self.lc_btn_menu_hovered  = load_cont("ASSETS/LEVELCONT/HOVERED/Group 148.png")
+        self.lc_btn_retry_normal  = load_cont("ASSETS/LEVELCONT/UNHOVERED/Group 150.png")
+        self.lc_btn_retry_hovered = load_cont("ASSETS/LEVELCONT/HOVERED/Group 151.png")
         game_bg = pygame.image.load(resource_path("ASSETS/GAME/game_background.jpg")).convert()
         self.game_bg = pygame.transform.scale(game_bg, (800, 600))
 
@@ -187,10 +195,12 @@ class AssetManager:
         self.text_normal  = {}
         self.text_hovered = {}
         buttons = ["play", "gamemodes", "howtoplay", "settings", "credits", "exit"]
-        
+
         for btn in buttons:
             n = pygame.image.load(resource_path(f"ASSETS/TEXT/NORMAL/{btn}.png")).convert_alpha()
             h = pygame.image.load(resource_path(f"ASSETS/TEXT/HOVERED/hovered_{btn}.png")).convert_alpha()
+            # Scale both at the same BUTTON_SCALE — hovered images are naturally wider
+            # (they include a slipper icon) so they will appear bigger without distortion
             self.text_normal[btn] = pygame.transform.scale(n, (
                 int(n.get_width() * self.BUTTON_SCALE),
                 int(n.get_height() * self.BUTTON_SCALE)
@@ -199,3 +209,32 @@ class AssetManager:
                 int(h.get_width() * self.BUTTON_SCALE),
                 int(h.get_height() * self.BUTTON_SCALE)
             ))
+
+        # ── Named BGM paths (streamed via pygame.mixer.music) ────────────────
+        self.bgm_menu_path = resource_path("ASSETS/SOUND/moodmode-retro-game-arcade-236133.mp3")
+
+        # Per-level gameplay BGM
+        self.bgm_level_paths = {
+            1: resource_path("ASSETS/SOUND/BGM/sandbox-serenade-sky-toes-main-version-28029-02-39.mp3"),
+            2: resource_path("ASSETS/SOUND/BGM/2019-12-09_-_Retro_Forest_-_David_Fesliyan.mp3"),
+            3: resource_path("ASSETS/SOUND/BGM/2020-06-18_-_8_Bit_Retro_Funk_-_www.FesliyanStudios.com_David_Renda.mp3"),
+            4: resource_path("ASSETS/SOUND/BGM/2020-03-22_-_8_Bit_Surf_-_FesliyanStudios.com_-_David_Renda.mp3"),
+        }
+        # Fallback for any level not in the dict
+        self.bgm_gameplay_path = self.bgm_level_paths[1]
+
+        # ── Named SFX slots (placeholder-safe) ───────────────────────────────
+        self.sfx_level_cleared = self._load_sfx_placeholder(
+            "ASSETS/SOUND/sfx_level_cleared.mp3", self.sfx_can_hit, "sfx_level_cleared")
+        self.sfx_level_failed  = self._load_sfx_placeholder(
+            "ASSETS/SOUND/sfx_level_failed.mp3",  self.sfx_can_hit, "sfx_level_failed")
+        self.sfx_miss          = self._load_sfx_placeholder(
+            "ASSETS/SOUND/sfx_miss.mp3",           self.sfx_whoosh,  "sfx_miss")
+
+    def _load_sfx_placeholder(self, path, fallback, name):
+        """Load a Sound from path; fall back to an existing Sound if the file is absent."""
+        full = resource_path(path)
+        if not os.path.exists(full):
+            print(f"[AssetManager] WARNING: placeholder used for '{name}' — file not found: {full}")
+            return fallback
+        return pygame.mixer.Sound(full)

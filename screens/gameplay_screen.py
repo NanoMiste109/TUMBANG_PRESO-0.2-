@@ -3,7 +3,7 @@ import math
 from entities.player import Player
 from entities.guard import Guard
 from entities.can import Can
-from entities.slipper import Slipper
+from entities.slipper import Slipper, V4_STUN_FRAMES
 from entities.score import Score
 from entities.character import character_from_index
 from entities.duck_typing import render_all
@@ -14,7 +14,7 @@ from managers.save_manager import save_score
 
 class GameplayScreen:
 
-    LEVEL_THROWS = {1: 10, 2: 8, 3: 8, 4: 8}
+    LEVEL_THROWS = {1: 10, 2: 8, 3: 8, 4: 6}
 
     def __init__(self, game):
         self.game = game
@@ -34,6 +34,9 @@ class GameplayScreen:
         self.special_active = False
         self.committed_points = 0
         self._e_held = False
+        self._g_held = False          # G key for slipper ability
+        self._slipper_ability_used = False  # one use per level
+        self._extra_slippers = []     # v3 split extra projectiles
         self.setup_level()
 
     def setup_level(self):
@@ -48,10 +51,14 @@ class GameplayScreen:
         self.special_active = False
         self.committed_points = 0
         self.throws_remaining = self.LEVEL_THROWS.get(lvl, 10)
+        self._g_held = False
+        self._slipper_ability_used = False
+        self._extra_slippers = []
 
         if lvl == 1:
             self.score       = Score(0, 100)
             self.miss_penalty = 10
+            self.can.clear_patrol()
             self.guards = [Guard(500, 400, [
                 (680, 370), (680, 540), (380, 540), (380, 370)
             ], speed=1.8)]
@@ -59,6 +66,7 @@ class GameplayScreen:
         elif lvl == 2:
             self.score       = Score(0, 100)
             self.miss_penalty = 15
+            self.can.clear_patrol()
             self.guards = [
                 Guard(500, 400, [
                     (760, 370), (760, 540), (380, 540), (380, 370)
@@ -71,31 +79,30 @@ class GameplayScreen:
         elif lvl == 3:
             self.score       = Score(0, 120)
             self.miss_penalty = 20
+            self.can.clear_patrol()
+            # 2 guards in front of the can, patrolling vertically one behind the other
             self.guards = [
-                Guard(500, 400, [
-                    (740, 390), (740, 420), (390, 420), (390, 390)
-                ], speed=2.8),
-                Guard(560, 460, [
-                    (560, 360), (560, 540), (600, 540), (600, 360)
-                ], speed=2.6),
-                Guard(450, 500, [
-                    (740, 490), (740, 540), (390, 540), (390, 490)
-                ], speed=2.5),
+                Guard(530, 360, [
+                    (530, 360), (530, 520)
+                ], speed=2.2),
+                Guard(560, 440, [
+                    (560, 440), (560, 360), (560, 520)
+                ], speed=2.4),
             ]
 
         elif lvl == 4:
-            self.score       = Score(0, 140)
+            self.score       = Score(0, 100)
             self.miss_penalty = 25
+            # Can moves vertically between two points
+            self.can.set_patrol(
+                waypoints=[(540, 360), (540, 480)],
+                speed=1.2,
+            )
+            # 1 fast guard patrolling vertically in front of the can
             self.guards = [
-                Guard(500, 390, [
-                    (740, 375), (740, 410), (390, 410), (390, 375)
-                ], speed=3.2),
-                Guard(545, 450, [
-                    (545, 355), (545, 545), (590, 545), (590, 355)
-                ], speed=3.0),
-                Guard(390, 510, [
-                    (390, 490), (390, 545), (740, 545), (740, 490)
-                ], speed=3.0),
+                Guard(530, 360, [
+                    (530, 360), (530, 520)
+                ], speed=3.8),
             ]
 
         # keep manager in sync; health = score
@@ -110,6 +117,7 @@ class GameplayScreen:
         self.game.manager.score = int(self.score)
         self.character.sync_health(int(self.score))
         self.special_active = False
+        self.game.assets.sfx_miss.play()
 
     def _outlined_text(self, font, text, color, surface, pos):
         outline = font.render(text, True, (0, 0, 0))
@@ -186,18 +194,12 @@ class GameplayScreen:
     def update(self, mouse_pos, clicked):
         keys = pygame.key.get_pressed()
         if keys[pygame.K_ESCAPE]:
-            if not self._esc_held:
+            if not self._esc_held and self.state == "playing":
                 self.game.pause.toggle()
             self._esc_held = True
         else:
             self._esc_held = False
         if self.state != "playing":
-            if keys[pygame.K_ESCAPE]:
-                if not self._esc_held:
-                    self.game.pause.toggle()
-                self._esc_held = True
-            else:
-                self._esc_held = False
             self.game.pause.update(mouse_pos, clicked)
             if self.state == "complete" and clicked and not self.game.pause.active:
                 self._handle_complete_click(mouse_pos)
@@ -209,10 +211,46 @@ class GameplayScreen:
         self.player.move(keys)
         self.power_meter.update()
 
+        # ── E key: arm/disarm character special ──────────────────────────────
         if keys[pygame.K_e] and not self._e_held:
             if self.power_meter.phase is None and self.slipper is None:
-                self.special_armed = not self.special_armed
+                if not self.special_armed and self.character.uses_remaining > 0:
+                    self.special_armed = True
+                elif self.special_armed:
+                    self.special_armed = False
         self._e_held = keys[pygame.K_e]
+
+        # ── G key: activate slipper ability ──────────────────────────────────
+        slipper_idx = self.game.manager.selected_slipper
+        slip_idx = slipper_idx  # alias used below in SPACE block
+        if keys[pygame.K_g] and not self._g_held:
+            if not self._slipper_ability_used and slipper_idx > 0:
+                if self.slipper and not self.slipper.landed:
+                    # Activate ability on the in-flight slipper (v2/v3/v4)
+                    activated = self.slipper.activate_ability(guards=self.guards)
+                    if activated:
+                        self._slipper_ability_used = True
+                        if slipper_idx == 2:
+                            # v3 split: spawn 2 extra slippers at spread angles
+                            spread = 0.25
+                            angle_main = math.atan2(self.slipper.vel_y, self.slipper.vel_x)
+                            base_speed = math.hypot(self.slipper.vel_x, self.slipper.vel_y)
+                            for delta in (-spread, spread):
+                                extra = Slipper(
+                                    self.slipper.x, self.slipper.y,
+                                    angle_main + delta, base_speed, self.slipper.power,
+                                    ground_y=self.slipper.ground_y,
+                                    slipper_index=2,
+                                )
+                                extra.ability_used  = True
+                                extra._split_active = True
+                                extra._num_frames   = len(extra.frames_split)
+                                extra.anim_frame    = 0
+                                self._extra_slippers.append(extra)
+                elif self.power_meter.phase is None and self.slipper is None:
+                    # Arm for next throw (v2 arms before throw)
+                    self._slipper_ability_armed = not getattr(self, '_slipper_ability_armed', False)
+        self._g_held = keys[pygame.K_g]
 
         space_down = keys[pygame.K_SPACE]
         if space_down and not self._space_held:
@@ -221,6 +259,11 @@ class GameplayScreen:
                 if self.special_armed:
                     self.special_active = True
                     self.special_armed = False
+                    self.character.consume_special_use()
+                    # Maria's Tiyaga: grant +1 bonus throw when activated
+                    from entities.character import MariaCharacter
+                    if isinstance(self.character, MariaCharacter):
+                        self.throws_remaining += 1
                 pm.start_direction()
             elif pm.phase == "direction":
                 pm.angle = pm._current_angle()
@@ -240,8 +283,14 @@ class GameplayScreen:
                         self.player.x + self.player.frame_w,
                         self.player.y + self.player.frame_h // 2,
                         angle, speed, power,
-                        ground_y=max(self.player.y + self.player.frame_h - self.player.FOOT_OFFSET, self.can.y + self.can.rect.height)
+                        ground_y=max(self.player.y + self.player.frame_h - self.player.FOOT_OFFSET, self.can.y + self.can.rect.height),
+                        slipper_index=self.game.manager.selected_slipper,
                     )
+                    # Apply v2 rocket ability if armed before throw
+                    if slip_idx == 1 and getattr(self, '_slipper_ability_armed', False) and not self._slipper_ability_used:
+                        self.slipper.activate_ability()
+                        self._slipper_ability_used = True
+                        self._slipper_ability_armed = False
         self._space_held = space_down
 
         if self.slipper:
@@ -253,24 +302,40 @@ class GameplayScreen:
 
             if mask_hit(self.slipper, self.can) and not self.can.knocked:
                 pts = self.committed_points
+                was_special = self.special_active
                 self.score += pts
                 self.game.manager.score = int(self.score)
                 self.character.sync_health(int(self.score))
                 self.game.assets.sfx_can_hit.play()
                 self.can.hit()
                 self.slipper = None
+                # Track special hits for slipper_v3 achievement
+                if was_special:
+                    self.game.achievements.on_special_hit()
                 self.special_active = False
                 # Operator overloading: Score.is_complete() / Score.__ge__
                 if self.score.is_complete():
                     self.state = "complete"
+                    self.game.assets.sfx_level_cleared.play()
                     self.game.manager.unlock_level(self.game.manager.current_level + 1)
                     self.game.achievements.on_level_cleared(self.game.manager.current_level)
                     if self.game.manager.player_name:
                         save_score(self.game.manager.player_name, int(self.score))
             else:
-                hit_guard = any(mask_hit(self.slipper, g) for g in self.guards)
+                hit_guard = False
+                stunned_by_pikachu = False
+                for g in self.guards:
+                    if mask_hit(self.slipper, g):
+                        hit_guard = True
+                        # v4 Pikachu: stun guard, no miss penalty
+                        if self.slipper.is_pikachu and not self._slipper_ability_used:
+                            g.stun(V4_STUN_FRAMES)
+                            self._slipper_ability_used = True
+                            stunned_by_pikachu = True
+                        break
                 if hit_guard:
-                    self._apply_miss_penalty()
+                    if not stunned_by_pikachu:
+                        self._apply_miss_penalty()
                     self.slipper = None
                 elif self.slipper.landed:
                     self._apply_miss_penalty()
@@ -278,9 +343,36 @@ class GameplayScreen:
                 elif self.slipper.x > 850 or self.slipper.x < -20:
                     self.slipper = None
                     self.special_active = False
-            # check if out of throws after slipper resolves
-            if self.slipper is None and self.throws_remaining <= 0 and self.state == "playing":
-                self.state = "gameover"
+
+        # Update and check extra slippers (v3 split)
+        for es in self._extra_slippers[:]:
+            es.update()
+            if not es.landed:
+                def mask_hit(a, b):
+                    offset = (b.rect.x - a.rect.x, b.rect.y - a.rect.y)
+                    return a.mask.overlap(b.mask, offset) is not None
+                if mask_hit(es, self.can) and not self.can.knocked:
+                    self.score += self.committed_points
+                    self.game.manager.score = int(self.score)
+                    self.character.sync_health(int(self.score))
+                    self.game.assets.sfx_can_hit.play()
+                    self.can.hit()
+                    self._extra_slippers.clear()
+                    if self.score.is_complete():
+                        self.state = "complete"
+                        self.game.assets.sfx_level_cleared.play()
+                        self.game.manager.unlock_level(self.game.manager.current_level + 1)
+                        self.game.achievements.on_level_cleared(self.game.manager.current_level)
+                        if self.game.manager.player_name:
+                            save_score(self.game.manager.player_name, int(self.score))
+                    break
+                elif es.landed or es.x > 850 or es.x < -20:
+                    self._extra_slippers.remove(es)
+
+        # check if out of throws after all slippers resolve
+        if self.slipper is None and not self._extra_slippers and self.throws_remaining <= 0 and self.state == "playing":
+            self.state = "gameover"
+            self.game.assets.sfx_level_failed.play()
         self.can.update()
 
         if self.can.knocked and self.can.anim_frame == self.can.KNOCK_FRAMES - 1:
@@ -301,6 +393,9 @@ class GameplayScreen:
         # Duck typing: render_all() calls .draw() on each entity regardless of type
         render_all(self.guards, surface)
         render_all([self.can, self.slipper, self.player], surface)
+        # Render extra slippers (v3 split)
+        for es in self._extra_slippers:
+            es.draw(surface)
 
         px = self.player.x + self.player.frame_w // 2
         py = self.player.y + self.player.frame_h // 2
@@ -314,6 +409,21 @@ class GameplayScreen:
             self._outlined_text(font, "SPECIAL ACTIVE!", (255, 220, 80), surface, (10, 46))
         elif self.special_armed:
             self._outlined_text(font, "SPECIAL ARMED (E)", (180, 255, 180), surface, (10, 46))
+        elif self.character.uses_remaining > 0:
+            uses_str = f"SPECIAL (E)  x{self.character.uses_remaining}"
+            self._outlined_text(font, uses_str, (140, 200, 140), surface, (10, 46))
+        else:
+            self._outlined_text(font, "NO SPECIAL LEFT", (120, 120, 120), surface, (10, 46))
+
+        # Slipper ability HUD (G key, v2/v3/v4 only)
+        slip_idx = self.game.manager.selected_slipper
+        if slip_idx > 0:
+            if self._slipper_ability_used:
+                self._outlined_text(font, "SLIPPER ABILITY USED", (100, 100, 100), surface, (10, 68))
+            elif getattr(self, '_slipper_ability_armed', False):
+                self._outlined_text(font, "SLIPPER ARMED (G)", (80, 220, 255), surface, (10, 68))
+            else:
+                self._outlined_text(font, "SLIPPER ABILITY (G)", (100, 180, 255), surface, (10, 68))
         throws_color = (255, 80, 80) if self.throws_remaining <= 3 else (255, 255, 255)
         throws_str = f"THROWS: {self.throws_remaining}"
         throws_surf = font.render(throws_str, True, throws_color)

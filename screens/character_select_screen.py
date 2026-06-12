@@ -1,13 +1,22 @@
 import pygame
 import math
 from resource_path import resource_path
+from utils.text import TextProvider
+from entities.character import character_from_index
 
 
 CHARACTERS = [
     {"name": "JOSE"},
     {"name": "BONG"},
     {"name": "MARIA"},
-    {"name": "GUARD"},
+]
+
+SLIPPER_NAMES = ["Default", "Street", "Pro", "Champion"]
+SLIPPER_PATHS = [
+    "ASSETS/SLIPPER/slipper.png",
+    "ASSETS/SLIPPER/slipper_v2.png",
+    "ASSETS/SLIPPER/slipper_v3.png",
+    "ASSETS/SLIPPER/slipper_v4.png",
 ]
 
 # Normal card dimensions
@@ -18,8 +27,8 @@ HOV_W   = 120
 HOV_H   = 180
 # Gap between cards
 GAP     = 28
-# Vertical center for cards
-CARD_Y  = 390
+# Vertical center for cards — moved up to create space for slipper row
+CARD_Y  = 340
 
 
 class CharacterSelectScreen:
@@ -34,6 +43,8 @@ class CharacterSelectScreen:
         self.name_font     = pygame.font.Font(resource_path("ASSETS/ThaleahFat/ThaleahFat.ttf"), 20)
         self.name_font_hov = pygame.font.Font(resource_path("ASSETS/ThaleahFat/ThaleahFat.ttf"), 26)
         self.hint_font     = pygame.font.Font(resource_path("ASSETS/ThaleahFat/ThaleahFat.ttf"), 14)
+        self.skill_title_font = pygame.font.Font(resource_path("ASSETS/ThaleahFat/ThaleahFat.ttf"), 17)
+        self.skill_desc_font  = pygame.font.Font(resource_path("ASSETS/ThaleahFat/ThaleahFat.ttf"), 13)
 
         self._left_held  = False
         self._right_held = False
@@ -42,14 +53,34 @@ class CharacterSelectScreen:
         # backdrop — load once, scale per use
         self._raw_backdrop = pygame.image.load(resource_path("ASSETS/CHARACTER/Group 144.png")).convert_alpha()
 
+        from entities.player import CHARACTER_SHEETS, _JOSE_FALLBACK
+
         # board — load once, scale per use
         self._raw_board = pygame.image.load(resource_path("ASSETS/MENU/board.png")).convert_alpha()
 
-        # player portrait — forward facing frame 0
-        sheet = pygame.image.load(resource_path("ASSETS/PLAYER/downward walk.png")).convert_alpha()
-        fw = sheet.get_width() // 6
-        fh = sheet.get_height()
-        self._raw_portrait = sheet.subsurface((0, 0, fw, fh)).copy()
+        # Per-character portraits — frame 0 of the "down" spritesheet
+        # Falls back to Jose's downward walk if the file is absent
+        JOSE_H = 68
+        TARGET_H = JOSE_H * 2  # match in-game sprite height
+
+        def _load_portrait(char_idx):
+            path = CHARACTER_SHEETS.get(char_idx, CHARACTER_SHEETS[0]).get("down")
+            try:
+                sheet = pygame.image.load(resource_path(path)).convert_alpha()
+            except Exception:
+                sheet = pygame.image.load(resource_path(_JOSE_FALLBACK["down"])).convert_alpha()
+            sh = sheet.get_height()
+            sw = sheet.get_width()
+            frames = round(sw / sh) if sh > 0 else 6
+            frames = max(1, frames)
+            fw = sw // frames
+            scale = TARGET_H / sh if sh > 0 else 1.0
+            dw, dh = int(fw * scale), int(sh * scale)
+            raw = sheet.subsurface((0, 0, fw, sh)).copy()
+            return pygame.transform.scale(raw, (dw, dh))
+
+        # Load one portrait per character
+        self._raw_portraits = [_load_portrait(i) for i in range(len(CHARACTERS))]
 
         self.padlock = self.assets.padlock
 
@@ -61,16 +92,37 @@ class CharacterSelectScreen:
         self._board_normal = pygame.transform.scale(self._raw_board, (CARD_W + 14, CARD_H + 14))
         self._board_hov    = pygame.transform.scale(self._raw_board, (HOV_W  + 14, HOV_H  + 14))
 
-        fw2 = self._raw_portrait.get_width()
-        fh2 = self._raw_portrait.get_height()
-        sc_n = min((CARD_W - 10) / fw2, (CARD_H - 20) / fh2)
-        sc_h = min((HOV_W  - 10) / fw2, (HOV_H  - 30) / fh2)
-        self._portrait_normal = pygame.transform.scale(self._raw_portrait, (int(fw2 * sc_n), int(fh2 * sc_n)))
-        self._portrait_hov    = pygame.transform.scale(self._raw_portrait, (int(fw2 * sc_h), int(fh2 * sc_h)))
+        # Pre-scale portraits for each character at normal and hovered sizes
+        self._portraits_normal = []
+        self._portraits_hov    = []
+        for raw in self._raw_portraits:
+            fw2, fh2 = raw.get_width(), raw.get_height()
+            sc_n = min((CARD_W - 10) / fw2, (CARD_H - 20) / fh2)
+            sc_h = min((HOV_W  - 10) / fw2, (HOV_H  - 30) / fh2)
+            self._portraits_normal.append(pygame.transform.scale(raw, (int(fw2 * sc_n), int(fh2 * sc_n))))
+            self._portraits_hov.append(pygame.transform.scale(raw, (int(fw2 * sc_h), int(fh2 * sc_h))))
 
-        # compute total width and starting x so cards are centered
-        total_w = 4 * CARD_W + 3 * GAP
+        # compute total width and starting x so 3 cards are centered
+        total_w = 3 * CARD_W + 2 * GAP
         self._start_x = (800 - total_w) // 2
+
+        # Slipper selector — small previews below cards
+        self._slipper_font  = pygame.font.Font(resource_path("ASSETS/ThaleahFat/ThaleahFat.ttf"), 13)
+        self._slipper_imgs  = []
+        SLIP_SIZE = 40
+        for path in SLIPPER_PATHS:
+            try:
+                img = pygame.image.load(resource_path(path)).convert_alpha()
+                # Take first frame (each slipper sheet has FRAMES=4)
+                fw = img.get_width() // 4
+                fh = img.get_height()
+                frame = img.subsurface((0, 0, fw, fh)).copy()
+                scale = min(SLIP_SIZE / fw, SLIP_SIZE / fh)
+                frame = pygame.transform.scale(frame, (int(fw * scale), int(fh * scale)))
+            except Exception:
+                frame = pygame.Surface((SLIP_SIZE, SLIP_SIZE), pygame.SRCALPHA)
+            self._slipper_imgs.append(frame)
+        self._hovered_slipper = -1
 
     def reset_input(self):
         self._space_held = True
@@ -117,10 +169,11 @@ class CharacterSelectScreen:
             self._hover_angle = 0.0
         self._right_held = keys[pygame.K_RIGHT]
 
-        # mouse click selects
+        # mouse click selects (only if unlocked)
         if clicked and self.hovered >= 0:
-            self.selected = self.hovered
-            self._hover_angle = 0.0
+            if self.game.manager.is_character_unlocked(self.hovered):
+                self.selected = self.hovered
+                self._hover_angle = 0.0
 
         space_or_enter = keys[pygame.K_SPACE] or keys[pygame.K_RETURN]
         if space_or_enter and not self._space_held:
@@ -133,9 +186,29 @@ class CharacterSelectScreen:
 
         self._hover_angle += 2.5
 
+        # Slipper selector — click to equip
+        SLIP_Y = 510
+        SLIP_GAP = 56
+        slip_start_x = 400 - (len(SLIPPER_PATHS) * SLIP_GAP) // 2 + SLIP_GAP // 2
+        self._hovered_slipper = -1
+        for i in range(len(SLIPPER_PATHS)):
+            sx = slip_start_x + i * SLIP_GAP
+            slip_rect = pygame.Rect(sx - 22, SLIP_Y - 22, 44, 44)
+            if slip_rect.collidepoint(mx, my):
+                self._hovered_slipper = i
+                if clicked and self.game.manager.is_slipper_unlocked(i):
+                    self.game.manager.selected_slipper = i
+
     def _confirm(self):
         self.game.manager.selected_character = self.selected
         self.game.manager.change_state("level_select")
+
+    def _find_achievement_for_character(self, char_idx):
+        """Return the AchievementDef whose unlocks_character == char_idx, or None."""
+        for ach in self.game.achievements.defs.values():
+            if ach.unlocks_character == char_idx:
+                return ach
+        return None
 
     def draw(self, surface):
         a = self.assets
@@ -154,12 +227,12 @@ class CharacterSelectScreen:
                 cw, ch, cy = HOV_W, HOV_H, CARD_Y - 10
                 board    = self._board_hov
                 backdrop = self._bd_hov
-                portrait = self._portrait_hov
+                portrait = self._portraits_hov[i]
             else:
                 cw, ch, cy = CARD_W, CARD_H, CARD_Y
                 board    = self._board_normal
                 backdrop = self._bd_normal
-                portrait = self._portrait_normal
+                portrait = self._portraits_normal[i]
 
             # draw order: board first (bamboo frame + dark interior)
             # then backdrop covers the dark interior
@@ -171,6 +244,13 @@ class CharacterSelectScreen:
             if locked:
                 pl = self.padlock
                 surface.blit(pl, pl.get_rect(center=(cx, cy - 12)))
+                # unlock hint when hovered
+                if i == self.hovered:
+                    ach = self._find_achievement_for_character(i)
+                    lang = self.game.manager.settings.get("LANGUAGE", "EN")
+                    hint_text = ach.description if ach else TextProvider.get("charselect.locked_hint", lang)
+                    hint_surf = self._outlined(self.hint_font, hint_text, (255, 220, 80))
+                    surface.blit(hint_surf, hint_surf.get_rect(center=(cx, cy + ch // 2 + 30)))
             else:
                 if is_active:
                     angle = math.sin(math.radians(self._hover_angle)) * 10
@@ -189,7 +269,114 @@ class CharacterSelectScreen:
                 # below card
                 surface.blit(name_surf, name_surf.get_rect(center=(cx, cy + ch // 2 + 14)))
 
+        lang = self.game.manager.settings.get("LANGUAGE", "EN")
         hint = self._outlined(self.hint_font,
-                              "ARROW KEYS or CLICK to select   |   SPACE / ENTER to confirm",
+                              TextProvider.get("charselect.hint", lang),
                               (180, 180, 180))
-        surface.blit(hint, hint.get_rect(center=(400, 570)))
+        surface.blit(hint, hint.get_rect(center=(400, 556)))
+
+        # Slipper selector row
+        self._draw_slipper_row(surface)
+
+        # Hover info card — shows skill info above the hovered card (unlocked only)
+        if self.hovered >= 0 and self.game.manager.is_character_unlocked(self.hovered):
+            self._draw_skill_card(surface, self.hovered)
+
+    def _draw_skill_card(self, surface, char_idx):
+        """Draw a small info card above the hovered character card."""
+        char_obj = character_from_index(char_idx)
+        cx = self._card_cx(char_idx)
+
+        skill_name = char_obj.SKILL_NAME or "No Special"
+        desc = char_obj.SKILL_DESC or ""
+
+        # Word-wrap description to fit within max_w pixels
+        max_w = 200
+        words = desc.split()
+        lines = []
+        current = ""
+        for word in words:
+            test = (current + " " + word).strip()
+            if self.skill_desc_font.size(test)[0] <= max_w - 12:
+                current = test
+            else:
+                if current:
+                    lines.append(current)
+                current = word
+        if current:
+            lines.append(current)
+
+        # Measure card dimensions based on actual content
+        name_surf = self._outlined(self.skill_title_font, skill_name, (255, 220, 80))
+        line_surfs = [self._outlined(self.skill_desc_font, l, (220, 220, 220)) for l in lines]
+
+        all_w = max([name_surf.get_width()] + [s.get_width() for s in line_surfs])
+        card_w = max(160, all_w + 20)
+        line_h = self.skill_desc_font.get_height() + 3
+        card_h = 14 + name_surf.get_height() + 6 + line_h * len(lines) + 8
+
+        card_x = cx - card_w // 2
+        card_y = CARD_Y - CARD_H // 2 - card_h - 10
+
+        # Keep card within screen bounds horizontally
+        card_x = max(4, min(card_x, 800 - card_w - 4))
+
+        # Background + border
+        bg = pygame.Surface((card_w, card_h), pygame.SRCALPHA)
+        bg.fill((0, 0, 0, 190))
+        surface.blit(bg, (card_x, card_y))
+        pygame.draw.rect(surface, (180, 140, 80), (card_x, card_y, card_w, card_h), 2)
+
+        # Skill name
+        card_cx = card_x + card_w // 2
+        y = card_y + 8
+        surface.blit(name_surf, name_surf.get_rect(centerx=card_cx, y=y))
+        y += name_surf.get_height() + 6
+
+        # Description lines
+        for ls in line_surfs:
+            surface.blit(ls, ls.get_rect(centerx=card_cx, y=y))
+            y += line_h
+
+    def _draw_slipper_row(self, surface):
+        """Draw the slipper selection row below the character cards."""
+        SLIP_Y    = 510  # pushed lower for breathing room
+        SLIP_GAP  = 56
+        n         = len(SLIPPER_PATHS)
+        start_x   = 400 - (n * SLIP_GAP) // 2 + SLIP_GAP // 2
+        selected  = self.game.manager.selected_slipper
+
+        # Label
+        lbl = self._outlined(self._slipper_font, "SLIPPER", (200, 200, 200))
+        surface.blit(lbl, lbl.get_rect(center=(400, SLIP_Y - 32)))
+
+        for i, img in enumerate(self._slipper_imgs):
+            sx = start_x + i * SLIP_GAP
+            unlocked = self.game.manager.is_slipper_unlocked(i)
+            slip_rect = pygame.Rect(sx - 22, SLIP_Y - 22, 44, 44)
+
+            # Background circle
+            bg_color = (80, 160, 80) if i == selected else (40, 40, 40)
+            pygame.draw.circle(surface, bg_color, (sx, SLIP_Y), 22)
+
+            # Border
+            border_col = (255, 220, 80) if i == selected else (
+                (140, 200, 140) if self._hovered_slipper == i else (80, 80, 80)
+            )
+            pygame.draw.circle(surface, border_col, (sx, SLIP_Y), 22, 2)
+
+            if unlocked:
+                surface.blit(img, img.get_rect(center=(sx, SLIP_Y)))
+            else:
+                # Padlock for locked slippers
+                pl = pygame.transform.scale(self.padlock, (28, 28))
+                surface.blit(pl, pl.get_rect(center=(sx, SLIP_Y)))
+                # Dim overlay
+                dim = pygame.Surface((44, 44), pygame.SRCALPHA)
+                dim.fill((0, 0, 0, 120))
+                surface.blit(dim, slip_rect)
+
+            # Name label below
+            name_col = (255, 255, 255) if unlocked else (100, 100, 100)
+            name_s = self._outlined(self._slipper_font, SLIPPER_NAMES[i], name_col)
+            surface.blit(name_s, name_s.get_rect(center=(sx, SLIP_Y + 28)))
