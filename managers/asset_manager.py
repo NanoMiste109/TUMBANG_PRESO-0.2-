@@ -112,7 +112,7 @@ class AssetManager:
         self.slider_knob     = load_slider("ASSETS/SETTINGS/slider selector 2.png")
         self.settings_font   = pygame.font.Font(resource_path("ASSETS/ThaleahFat/ThaleahFat.ttf"), 18)
 
-        PAUSE_SCALE = 0.32
+        PAUSE_SCALE = 0.38
         pause_normal_paths = {
             "resume":    resource_path("ASSETS/TEXT/NORMAL/GAME/RESUME.png"),
             "howtoplay": resource_path("ASSETS/TEXT/NORMAL/GAME/HOW TO PLAY (1).png"),
@@ -132,19 +132,19 @@ class AssetManager:
 
         for key, path in pause_normal_paths.items():
             img = pygame.image.load(path).convert_alpha()
-            nw = int(img.get_width()  * PAUSE_SCALE)
-            nh = int(img.get_height() * PAUSE_SCALE)
-            self.pause_normal[key] = pygame.transform.scale(img, (nw, nh))
+            self.pause_normal[key] = pygame.transform.scale(img, (
+                int(img.get_width()  * PAUSE_SCALE),
+                int(img.get_height() * PAUSE_SCALE)
+            ))
 
+        # All hovered buttons rendered at the same height for visual consistency
+        HOV_TARGET_H = max(s.get_height() for s in self.pause_normal.values()) + 14
         for key, path in pause_hovered_paths.items():
             img = pygame.image.load(path).convert_alpha()
-            # Match the height of the normal image, let width scale naturally
-            # so the slipper icon doesn't get squished
-            target_h = self.pause_normal[key].get_height()
-            scale = target_h / img.get_height() if img.get_height() > 0 else PAUSE_SCALE
+            scale = HOV_TARGET_H / img.get_height()
             self.pause_hovered[key] = pygame.transform.scale(img, (
                 int(img.get_width() * scale),
-                target_h
+                HOV_TARGET_H
             ))
 
         # load per-level-cont UI assets

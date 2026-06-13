@@ -27,7 +27,7 @@ class Slipper(GameObject):
 
     GRAVITY     = 0.08
     FRAME_DELAY = 4
-    SCALE       = 0.8
+    SCALE       = 1.2
 
     def __init__(self, x, y, angle, speed, power=50, ground_y=500, slipper_index=0):
         speed = min(speed, 12)
@@ -52,31 +52,18 @@ class Slipper(GameObject):
 
         fh = sheet.get_height()
 
+        # Each frame is square (fw == fh). Detect total frames from sheet width.
+        fw = fh
+        total_frames = max(1, sheet.get_width() // fw)
+        # v3 Triple: only use the first 7 single-slipper frames
         if slipper_index == 2:
-            # v3 Multiplier: detect frames from sheet width
-            total_frames = round(sheet.get_width() / fh)
-            fw = sheet.get_width() // total_frames
-            sw, sh = int(fw * self.SCALE), int(fh * self.SCALE)
-            all_frames = [
-                pygame.transform.scale(sheet.subsurface((i*fw, 0, fw, fh)), (sw, sh))
-                for i in range(total_frames)
-            ]
-            single_count     = min(V3_SINGLE_FRAMES, total_frames)
-            multiplied_count = total_frames - single_count
-            self.frames          = all_frames[:single_count]
-            self.frames_split    = all_frames[single_count:] if multiplied_count > 0 else all_frames[:single_count]
-            self._split_active   = False
-            self._num_frames     = len(self.frames)
-        else:
-            # All other slippers: 4 frames
-            total_frames = 4
-            fw = sheet.get_width() // total_frames
-            sw, sh = int(fw * self.SCALE), int(fh * self.SCALE)
-            self.frames = [
-                pygame.transform.scale(sheet.subsurface((i*fw, 0, fw, fh)), (sw, sh))
-                for i in range(total_frames)
-            ]
-            self._num_frames = total_frames
+            total_frames = min(total_frames, 7)
+        sw, sh = int(fw * self.SCALE), int(fh * self.SCALE)
+        self.frames = [
+            pygame.transform.scale(sheet.subsurface((i*fw, 0, fw, fh)), (sw, sh))
+            for i in range(total_frames)
+        ]
+        self._num_frames = total_frames
 
         self.rect = pygame.Rect(int(x), int(y), self.frames[0].get_width(), self.frames[0].get_height())
         self.mask = pygame.mask.from_surface(self.frames[0])
@@ -98,11 +85,8 @@ class Slipper(GameObject):
         if self.slipper_index == 1:  # Rocket — speed boost
             self.vel_x *= V2_SPEED_BOOST
 
-        elif self.slipper_index == 2:  # Multiplier — switch frames
-            self._split_active = True
-            self.anim_frame    = 0
-            self.anim_timer    = 0
-            self._num_frames   = len(self.frames_split)
+        elif self.slipper_index == 2:  # Triple — spawns 2 extras (handled in gameplay), no frame switch
+            pass  # extra slippers spawned by GameplayScreen on G press
 
         # v4 Pikachu: stun is applied in gameplay when this slipper hits a guard
         return True
@@ -135,14 +119,12 @@ class Slipper(GameObject):
             self.landed = True
         self.rect.x = int(self.x)
         self.rect.y = int(self.y)
-        cur_frames = self.frames_split if (self.slipper_index == 2 and getattr(self, '_split_active', False)) else self.frames
-        self.mask = pygame.mask.from_surface(cur_frames[self.anim_frame])
+        self.mask = pygame.mask.from_surface(self.frames[self.anim_frame])
 
     # ── Method Overriding (GameObject.draw) ─────────────────────────────────
     def draw(self, surface):
         """Override: render current animation frame."""
-        cur_frames = self.frames_split if (self.slipper_index == 2 and getattr(self, '_split_active', False)) else self.frames
-        surface.blit(cur_frames[self.anim_frame], (self.rect.x, self.rect.y))
+        surface.blit(self.frames[self.anim_frame], (self.rect.x, self.rect.y))
 
     # ── Method Overriding (GameObject.interact) ──────────────────────────────
     def interact(self, other=None):

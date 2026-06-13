@@ -80,14 +80,15 @@ class GameplayScreen:
             self.score       = Score(0, 120)
             self.miss_penalty = 20
             self.can.clear_patrol()
-            # 2 guards in front of the can, patrolling vertically one behind the other
+            # 2 guards left of the can, oscillating in opposite directions
+            # Each sweeps vertically then swings right and returns — no looping around the can
             self.guards = [
-                Guard(530, 360, [
-                    (530, 360), (530, 520)
+                Guard(430, 300, [          # front guard: top → bottom → right → bottom → top
+                    (430, 300), (430, 580), (620, 580), (430, 580), (430, 300)
                 ], speed=2.2),
-                Guard(560, 440, [
-                    (560, 440), (560, 360), (560, 520)
-                ], speed=2.4),
+                Guard(480, 580, [          # back guard: bottom → top → right → top → bottom
+                    (480, 580), (480, 300), (620, 300), (480, 300), (480, 580)
+                ], speed=2.2),
             ]
 
         elif lvl == 4:
@@ -100,8 +101,8 @@ class GameplayScreen:
             )
             # 1 fast guard patrolling vertically in front of the can
             self.guards = [
-                Guard(530, 360, [
-                    (530, 360), (530, 520)
+                Guard(530, 300, [
+                    (530, 300), (530, 580)
                 ], speed=3.8),
             ]
 
@@ -231,7 +232,7 @@ class GameplayScreen:
                     if activated:
                         self._slipper_ability_used = True
                         if slipper_idx == 2:
-                            # v3 split: spawn 2 extra slippers at spread angles
+                            # v3 Triple: spawn 2 extra slippers at spread angles
                             spread = 0.25
                             angle_main = math.atan2(self.slipper.vel_y, self.slipper.vel_x)
                             base_speed = math.hypot(self.slipper.vel_x, self.slipper.vel_y)
@@ -242,10 +243,7 @@ class GameplayScreen:
                                     ground_y=self.slipper.ground_y,
                                     slipper_index=2,
                                 )
-                                extra.ability_used  = True
-                                extra._split_active = True
-                                extra._num_frames   = len(extra.frames_split)
-                                extra.anim_frame    = 0
+                                extra.ability_used = True
                                 self._extra_slippers.append(extra)
                 elif self.power_meter.phase is None and self.slipper is None:
                     # Arm for next throw (v2 arms before throw)
@@ -344,13 +342,13 @@ class GameplayScreen:
                     self.slipper = None
                     self.special_active = False
 
-        # Update and check extra slippers (v3 split)
+        # Update and check extra slippers (v3 Triple)
         for es in self._extra_slippers[:]:
             es.update()
+            def mask_hit(a, b):
+                offset = (b.rect.x - a.rect.x, b.rect.y - a.rect.y)
+                return a.mask.overlap(b.mask, offset) is not None
             if not es.landed:
-                def mask_hit(a, b):
-                    offset = (b.rect.x - a.rect.x, b.rect.y - a.rect.y)
-                    return a.mask.overlap(b.mask, offset) is not None
                 if mask_hit(es, self.can) and not self.can.knocked:
                     self.score += self.committed_points
                     self.game.manager.score = int(self.score)
@@ -366,8 +364,13 @@ class GameplayScreen:
                         if self.game.manager.player_name:
                             save_score(self.game.manager.player_name, int(self.score))
                     break
-                elif es.landed or es.x > 850 or es.x < -20:
+                # Remove if it hit a guard, went off-screen, or landed
+                hit_guard_extra = any(mask_hit(es, g) for g in self.guards)
+                if hit_guard_extra or es.x > 850 or es.x < -20:
                     self._extra_slippers.remove(es)
+            else:
+                # Landed on ground — remove immediately
+                self._extra_slippers.remove(es)
 
         # check if out of throws after all slippers resolve
         if self.slipper is None and not self._extra_slippers and self.throws_remaining <= 0 and self.state == "playing":

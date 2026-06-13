@@ -63,380 +63,241 @@ if __name__ == "__main__":
 
 DOCUMENTATION.md:
 <code>
-TUMBANG PRESO — Game Development Documentation
- 50% Progress Report
+# TUMBANG PRESO — Game Development Documentation
+## Final Version
 
 ---
 
-1. Project Overview
+## 1. Game Overview
 
 **Game Title:** Tumbang Preso
-**Engine/Framework:** Python 3.12 + Pygame 2.6.1
+**Engine / Framework:** Python 3.12 + Pygame 2.6.1
 **Genre:** Arcade / Skill-based
 **Platform:** Windows (Desktop)
+**Target Audience:** Filipino students and casual gamers aged 10–25
 
-Tumbang Preso is a digital adaptation of the classic Filipino street game. The player throws a slipper to knock down a tin can (lata) guarded by an NPC. The game features two playable levels, a full menu system, animated sprites, and a two-phase aiming mechanic as of the making of this document.
-
----
-
-2. Project Structure
-
-```
-TUMBANG_PRESO/
-├── main.py                  — Entry point, game loop
-├── game.py                  — Core Game class, screen manager, fade transitions
-├── managers/
-│   ├── asset_manager.py     — Loads and stores all game assets
-│   └── game_manager.py      — Tracks game state, score, unlocked levels
-├── entities/
-│   ├── player.py            — Player character with sprite animation
-│   ├── guard.py             — Guard NPC with waypoint AI
-│   ├── can.py               — Tin can with idle and knocked animations
-│   ├── slipper.py           — Projectile with physics and gravity
-│   ├── background.py        — Parallax scrolling background
-│   └── clouds.py            — Animated cloud entities
-├── screens/
-│   ├── menu_screen.py       — Main menu
-│   ├── character_select_screen.py — Character selection before level select
-│   ├── level_select_screen.py — Level selection with lock/unlock
-│   ├── gameplay_screen.py   — Core gameplay logic
-│   ├── pause_screen.py      — In-game pause menu
-│   ├── settings_screen.py   — Audio settings with sliders
-│   ├── credits_screen.py    — Developer credits
-│   └── how_to_play_screen.py — Game instructions
-├── ui/
-│   ├── power_meter.py       — Two-phase aiming mechanic UI
-│   └── button.py            — Reusable button component
-├── resource_path.py         — Portable asset path resolver
-└── ASSETS/                  — All game assets (sprites, audio, fonts, UI)
-```
+Tumbang Preso is a digital adaptation of the classic Filipino street game. The player throws a slipper to knock down a tin can (lata) guarded by NPC guards. The game features 4 playable levels of increasing difficulty, 4 selectable characters (3 default + 1 unlockable), a special skill system per character, 4 slipper types (1 default + 3 unlockable), an achievement system, a persistent leaderboard, bilingual support (English / Tagalog), animated sprites, and a two-phase aiming mechanic.
 
 ---
 
-3. Architecture
+## 2. Storyline and Objectives
 
-3.1 Game Loop (main.py + game.py)
+### Storyline
 
-The game runs at 60 FPS using `pygame.time.Clock`. The `Game` class manages:
-- A virtual canvas of **800×600** pixels scaled to the window size
-- A dictionary of screen objects (`menu`, `gameplay`, `level_select`, etc.)
-- A **fade transition system** that fades to black between screen changes
-- A **parallax background** and animated clouds rendered on every screen
+In the streets and plazas of the Philippines, Tumbang Preso has been a beloved childhood game for generations. Players compete to knock down a tin can guarded by a designated "taga" (guard). You step into the shoes of a street-smart kid determined to master the throw and beat every level.
+
+### Objectives
+
+- Knock the tin can down enough times to meet the score target for each level.
+- Avoid throwing the slipper into the guard — a missed throw deducts points.
+- Clear all 4 levels to unlock every character and slipper type.
+- Earn achievements and climb the leaderboard.
+
+---
+
+## 3. Gameplay Mechanics
+
+### 3.1 Two-Phase Aiming
+
+Throwing the slipper is a two-step process controlled with the SPACE key:
+
+**Phase 1 — Direction:**
+An arrow rotates ±60° around the player. Press SPACE to lock the throw direction.
+
+**Phase 2 — Power:**
+A power bar oscillates from 0% to 100%. Press SPACE again to lock the power and fire the slipper.
+
+### 3.2 Scoring
+
+| Power Range | Hit Category | Points |
+|---|---|---|
+| 1–33% | Weak | 5 pts |
+| 34–66% | Medium | 10 pts |
+| 67–100% | Strong | 20 pts |
+
+Score cannot drop below 0. The score target must be reached before throws run out to clear the level.
+
+### 3.3 Miss Penalty
+
+Missing the can (slipper lands or hits a guard) deducts points. The penalty amount increases with each level and is affected by active special skills.
+
+### 3.4 Special Skills
+
+Each character has a unique special skill that can be activated up to 3 times per level. Pressing E arms the skill; pressing SPACE while armed activates it on the next throw.
+
+### 3.5 Slipper Abilities
+
+Unlockable slippers each have a one-time in-flight ability activated by pressing G while the slipper is airborne (or before throwing, for the Street Slipper).
+
+### 3.6 Player Movement
+
+The player character moves in 4 directions using the Arrow Keys. Repositioning allows different throw angles toward the can.
+
+### 3.7 Controls
+
+| Input | Action |
+|---|---|
+| Arrow Keys | Move player (4 directions) |
+| E | Arm / disarm character special skill |
+| SPACE (1st press) | Start aiming — lock throw direction |
+| SPACE (2nd press) | Lock throw power and fire slipper |
+| G | Activate slipper ability (mid-flight or before throw) |
+| SPACE / ENTER | Confirm selection on menus |
+| Mouse Click | Select cards, buttons, sliders |
+| ESC | Pause during gameplay / return to previous screen |
+
+---
+
+## 4. Characters and Assets
+
+### 4.1 Characters
+
+| # | Name | Unlock Condition | Special Skill | Effect |
+|---|---|---|---|---|
+| 0 | Jose | Default (always available) | Steady Aim | Boosts throw power by 15 (capped at 110) for a higher-scoring hit |
+| 1 | Bong | Clear Level 1 | Doble Hampas | Doubles hit points on a successful throw |
+| 2 | Maria | Clear Level 2 | Tiyaga | Grants +1 bonus throw; miss penalty is doubled if activated |
+| 3 | Guard | Clear Level 4 | Bantay Mode | Reserved for future update |
+
+All characters have 3 special uses per level. The miss penalty when a special is active (except Maria) is the would-have-scored points plus 10.
+
+### 4.2 Character Sprites
+
+Each character uses 4 directional sprite sheets:
+
+| Direction | File Pattern |
+|---|---|
+| Horizontal (walk right) | `{name}_horizontal.png` |
+| Upward walk | `{name}_upward.png` |
+| Downward walk | `{name}_downward.png` |
+| Throw animation | `{name}_throw.png` |
+
+Frame count is auto-detected from the image dimensions. All characters are scaled to a uniform height (136 px). Maria's throw sprite is pre-flipped on load since it faces left by default.
+
+### 4.3 Slippers
+
+| # | Name | Unlock Condition | Special Ability (G key) |
+|---|---|---|---|
+| 0 | Default Slipper | Always available | None |
+| 1 | Street Slipper | Clear Level 2 | Rocket boost — doubles speed mid-flight |
+| 2 | Pro Slipper | Hit can with special 3× (persistent) | Split shot — spawns 2 extra slippers at spread angles |
+| 3 | Champion Slipper | Clear Level 4 | Pikachu Stun — stuns the guard on hit instead of taking a miss penalty |
+
+### 4.4 Guard NPC
+
+The guard (`entities/guard.py`) is an NPC that patrols a defined set of waypoints. It uses 3 directional sprite sheets (walk, upward, downward). If hit by the Champion Slipper's Pikachu Stun ability, the guard is frozen for 3 seconds (180 frames) with no miss penalty applied.
+
+---
+
+## 5. Level Design
+
+| Level | Background | Score Target | Throws | Miss Penalty | Guards | Moving Can |
+|---|---|---|---|---|---|---|
+| 1 | Kalsada (Street) | 100 pts | 10 | −10 pts | 1, rectangular patrol | No |
+| 2 | Park | 100 pts | 8 | −15 pts | 2, rectangular patrols | No |
+| 3 | Market | 120 pts | 8 | −20 pts | 2, vertical oscillation (opposite phase) | No |
+| 4 | Field | 100 pts | 6 | −25 pts | 1, fast vertical patrol | Yes (vertical) |
+
+**Level 3 Detail:** Two guards patrol vertically in opposite directions — when one moves down, the other moves up, creating a gap-and-block rhythm the player must time their throw around.
+
+**Level 4 Detail:** The tin can itself moves vertically between y=360 and y=480 at speed 1.2. A single fast guard (speed 3.8) also patrols vertically, making targeting significantly more difficult.
+
+---
+
+## 6. User Interface Design
+
+### 6.1 Screen Flow
+
+```
+Intro Screen
+    └── Name Entry (first launch only)
+        └── Main Menu
+            ├── PLAY → Character Select → Level Select → Gameplay
+            │                                               ├── Pause Overlay
+            │                                               ├── Level Cleared Overlay
+            │                                               └── Level Failed Overlay
+            ├── SETTINGS
+            ├── HOW TO PLAY
+            ├── CREDITS
+            ├── GAME MODES (Coming Soon popup)
+            ├── Leaderboard (trophy icon)
+            └── Achievements (green trophy icon)
+```
+
+### 6.2 In-Game HUD
+
+| Element | Position | Description |
+|---|---|---|
+| Score display | Top-left | "SCORE: X / TARGET" — uses Score.__str__ |
+| Special indicator | Below score | Shows uses remaining, ARMED, ACTIVE, or NONE |
+| Slipper ability indicator | Below special | Shows ability status (if slipper > 0) |
+| Throw counter | Bottom-right | Turns red when ≤ 3 throws remain |
+| ESC hint | Top-right | ESC key icon + "TO PAUSE" |
+| Power meter | Near player | Direction arrow (phase 1) and power bar (phase 2) |
+
+### 6.3 Parallax Background
+
+The main menu uses a multi-layer parallax background (`entities/background.py`) with scrolling cloud layers (`entities/clouds.py`).
+
+---
+
+## 7. Development Process
+
+### 7.1 Architecture Overview
+
+The game follows a layered MVC-inspired architecture:
+
+- **`main.py`** — Entry point. Handles the OS window, pygame event loop, and scales the 800×600 virtual canvas to the display window.
+- **`game.py`** — Core `Game` class. Owns all screens, managers, and handles fade transitions and BGM swaps.
+- **`managers/`** — Singleton-style managers for assets, game state, save data, and achievements.
+- **`entities/`** — All game objects inheriting from the abstract `GameObject` base class.
+- **`screens/`** — Each screen is a self-contained class with `update()` and `draw()` methods.
+- **`ui/`** — Reusable UI components (power meter, button).
+- **`utils/`** — Text rendering and bilingual string management.
+
+### 7.2 Game Loop
+
+The game runs at 60 FPS. A virtual 800×600 surface is scaled to the actual window size each frame:
 
 ```python
 while True:
     game.update(mouse_pos, clicked)
     game.draw()
-    scaled_surface = pygame.transform.scale(game.surface, (SCREEN_WIDTH, SCREEN_HEIGHT))
-    screen.blit(scaled_surface, (0, 0))
+    scaled = pygame.transform.scale(game.surface, (SCREEN_W, SCREEN_H))
+    screen.blit(scaled, (0, 0))
     clock.tick(60)
 ```
 
- 3.2 State Management (GameManager)
+### 7.3 State Management
 
-`GameManager` is a single shared object that tracks:
+`GameManager` is a shared state object loaded from `profile.json` at startup. It tracks the current screen, selected character and slipper, unlocked content, settings, and player name.
 
-| Attribute | Description |
-|---|---|
-| `game_state` | Current active screen ("menu", "gameplay", etc.) |
-| `current_level` | Which level is being played (1 or 2) |
-| `unlocked_levels` | Set of levels the player has unlocked |
-| `score` | Current session score |
-| `settings` | Shared audio settings (Music, Sound, SFX, Sensitivity) |
-| `selected_character` | Index of the chosen character (0–3, default 0) |
-| `previous_state` | The screen that was active before navigating to Settings or How To Play, used to return correctly on ESC |
+### 7.4 Save System
 
-Level 2 unlocks automatically when the player completes Level 1 (reaches 100 points). This persists for the entire session. The selected character persists across level restarts within the same session.
+Two JSON files are persisted locally:
 
----
+- **`profile.json`** — Unlocked levels, characters, slippers, achievement flags, and special hit counter.
+- **`scores.json`** — Leaderboard entries. Each player has a cumulative score; the top 10 players are kept.
 
-4. Controls
+### 7.5 OOP Design Principles
 
-| Input | Action |
-|---|---|
-| Arrow Keys (Left/Right) | Navigate character cards on select screen |
-| Arrow Keys (gameplay) | Move the player in 4 directions |
-| SPACE (1st press) | Start aiming — locks throw direction |
-| SPACE (2nd press) | Locks throw power and fires the slipper |
-| SPACE / ENTER | Confirm character selection |
-| Mouse Click | Select a character card or confirm selection |
-| ESC | Pause / unpause the game, or go back from a screen |
+**Inheritance and Abstraction:**
+- `GameObject` (ABC) → `Player`, `Guard`, `Can`, `Slipper` each override `update()`, `draw()`, `interact()`
+- `Character` (ABC) → `JoseCharacter`, `BongCharacter`, `MariaCharacter`, `GuardCharacter` each override `attack()`, `special_skill()`, `compute_hit_points()`, `miss_penalty_amount()`
 
----
+**Polymorphism:**
+- `render_all()` in `duck_typing.py` calls `.draw(surface)` on any list of entities without type-checking — demonstrating duck typing
+- Each `Character` subclass overrides `compute_hit_points()` and `miss_penalty_amount()` with its own behavior
 
-5. Sprites and Characters
+**Operator Overloading (`entities/score.py`):**
+- `Score` implements `__add__`, `__sub__`, `__ge__`, `__str__`, and `is_complete()` so score arithmetic reads naturally in gameplay code
 
-5.1 Player (entities/player.py)
+**Method Overloading Pattern:**
+- `Player.move()` uses Python's default argument pattern to support both keyboard-driven and scripted delta movement
 
-The player character is controlled with the arrow keys and uses four separate sprite sheets. The game supports 4 selectable characters — each character has its own set of sprite sheets defined in the `CHARACTER_SHEETS` dictionary at the top of `player.py`. When new character assets are ready, only the file paths in that dictionary need to be updated.
+### 7.6 Asset Pipeline
 
-**Characters:**
-
-| Index | Name | Status |
-|---|---|---|
-| 0 | Jose | Active — current sprite sheets |
-| 1 | Maria | Placeholder — uses Jose sprites until assets arrive |
-| 2 | Bong | Placeholder — uses Jose sprites until assets arrive |
-| 3 | Guard | Placeholder — uses Jose sprites until assets arrive |
-
-| Sprite Sheet | Frames | Used When |
-|---|---|---|
-| Horizontal Walk | 6 | Walking left or right |
-| Upward Walk | 6 | Walking up |
-| Downward Walk | 6 | Walking down |
-| Throw | 6 | Throwing the slipper |
-
-**Key Methods:**
-
-- `__init__(x, y, character=0)` — Accepts a character index, looks up the matching sprite sheet paths from `CHARACTER_SHEETS`, and loads all four animation sets.
-- `move(keys)` — Handles 4-directional movement. Enforces a diagonal boundary (`_x_limit()`) that follows the white court line in the background. The player cannot cross to the right side of this line.
-- `_x_limit()` — Calculates the maximum allowed x position based on the player's current y, using linear interpolation between two points on the diagonal line.
-- `throw()` — Triggers the throw animation (plays once, then returns to idle).
-- `_update_anim()` — Advances the animation frame every `FRAME_DELAY` (6) game frames.
-- `draw(surface)` — Selects the correct frame based on movement direction. The sprite is flipped horizontally when facing left, except during the throw animation, which always faces right regardless of the last movement direction.
-
-**Constants:**
-
-| Constant | Value | Purpose |
-|---|---|---|
-| `SCALE` | 2.0 | Sprite scale multiplier |
-| `Y_MIN` | 280 | Upper movement boundary |
-| `FRAME_DELAY` | 6 | Frames per animation frame |
-| `FOOT_OFFSET` | 14 | Transparent padding at sprite bottom (px) |
-
----
-
-5.2 Guard NPC (entities/guard.py)
-
-The guard follows a fixed rectangular patrol path defined by waypoints.
-
-**Sprite Sheet:** `guard walking.png` — 6 frames, scaled 2×
-
-**Key Methods:**
-
-- `__init__(x, y, waypoints, speed)` — Accepts a custom waypoint list and speed, allowing different patrol paths and difficulties per level.
-- `update(player)` — Moves the guard toward the next waypoint using normalized direction vectors. Advances to the next waypoint when within `SPEED` distance. Updates the collision mask each frame.
-- `draw(surface)` — Blits the current animation frame, flipping the sprite horizontally based on movement direction. Calls `_draw_path` before drawing the guard.
-- `_draw_path(surface)` — Draws the dotted white patrol path on screen for visibility.
-
-**Level Differences:**
-
-| Level | Guards | Speed | Path |
-|---|---|---|---|
-| 1 | 1 | 1.8 | Outer rectangle around the can |
-| 2 | 2 | 2.2 / 2.5 | Outer + inner rectangle (tighter) |
-
----
-
- 5.3 Tin Can (entities/can.py)
-
-The can has two animation states:
-
-| State | Sprite File | Frames |
-|---|---|---|
-| Idle (upright) | `lata knocked v2 (1).png` | 3 |
-| Knocked (falling) | `lata knocked.png` | 5 |
-
-Note: the idle sprite filename is a legacy asset name — in code it is loaded as `frames_idle` and displays the can standing upright.
-
-**Key Methods:**
-
-- `hit()` — Triggers the knocked animation (plays once, holds on last frame).
-- `update()` — Advances the knock animation frame by frame.
-- `reset()` — Returns the can to idle state after a hold timer expires.
-
-Collision detection uses `pygame.mask` (pixel-perfect) rather than bounding rectangles, meaning only actual visible pixels from the slipper and can sprites register a hit — not the transparent padding around them.
-
----
-
- 5.4 Slipper Projectile (entities/slipper.py)
-
-**Sprite Sheet:** `slipper.png` — 4 frames, scaled 0.8×
-
-The slipper is a physics-based projectile:
-
-- Launched with a velocity vector derived from the locked angle and power
-- Subject to gravity (`GRAVITY = 0.08` per frame)
-- Speed is capped at 12 px/frame to prevent it flying off screen
-- Lands at `ground_y` — calculated as the maximum of the player's foot level and the can's base level at throw time. This ensures the slipper travels far enough to reach the can regardless of the player's vertical position on the court.
-- Uses pixel-perfect mask collision
-
-**Key Methods:**
-
-- `__init__(x, y, angle, speed, power, ground_y)` — Spawns the slipper at the given position, computes initial velocity from angle and speed, loads and slices the sprite sheet, and builds the initial collision mask.
-- `update()` — Applies gravity to `vel_y` each frame, advances position, cycles the spin animation, and sets `landed = True` when `y >= ground_y`.
-- `draw(surface)` — Blits the current animation frame at the slipper's position.
-
-**Physics:**
-```
-vel_x = cos(angle) × speed
-vel_y = sin(angle) × speed
-vel_y += GRAVITY  (each frame)
-```
-
----
-
-5.5 Parallax Background (entities/background.py)
-
-The background is composed of multiple image layers that scroll at different speeds to create a depth illusion.
-
-Each layer is a tuple of `(surface, y_position, scroll_speed)`. Layers with `speed = 0` are static (sky, ground overlay). Layers with higher speed values scroll faster, appearing closer to the camera.
-
-**Key Methods:**
-
-- `__init__(layers)` — Accepts the pre-built layer list from `AssetManager` and initializes scroll offsets.
-- `update()` — Advances the x offset of each scrolling layer. When a layer scrolls fully off the left edge, it wraps back to the right.
-- `draw(surface)` — Tiles each layer horizontally across the canvas to fill the screen width seamlessly.
-
----
-
-5.6 Clouds (entities/clouds.py)
-
-Animated cloud entities that drift across the top portion of the screen on all screens.
-
-**Key Methods:**
-
-- `__init__(width, height, cloud_images)` — Randomly selects 3 cloud images from the pool, scales each one randomly between 35%–55%, and assigns each a random starting position and drift speed.
-- `update(time)` — Moves each cloud left at its drift speed and applies a gentle sine-wave vertical bob using the global time value. Clouds that drift off the left edge respawn at the right.
-- `draw(surface)` — Blits each cloud at its current position.
-
----
-
- 6. Aiming Mechanic (ui/power_meter.py)
-
-The throw uses a two-phase system inspired by classic sports games:
-
-**Phase 1 — Direction:**
-- An arrow oscillates between −60° and +60° beside the player
-- Press SPACE to lock the angle
-- Oscillation: `angle = -60° × sin(timer × 1.5)`
-
-**Phase 2 — Power:**
-- A bar oscillates from 0% to 100%
-- Press SPACE again to lock power and fire
-- Oscillation: `power = (sin(timer × 2.0) + 1) / 2 × 100`
-
-**Key Methods:**
-
-- `start_direction()` — Begins phase 1, sets `phase = "direction"` and resets the timer.
-- `lock_direction()` — Captures the current oscillating angle and advances to phase 2 (`phase = "power"`).
-- `lock_power()` — Captures the current power value, resets state, and returns `(angle, power)` to the caller to spawn the slipper.
-- `reset()` — Cancels the aiming sequence and clears phase state.
-- `_current_angle()` — Returns the live oscillating angle in radians for phase 1.
-- `_current_power()` — Returns the live oscillating power (0–100) for phase 2.
-- `update()` — Advances the internal timer each frame while a phase is active.
-- `draw(surface, player_x, player_y)` — Renders the direction arrow and/or power bar depending on the current phase, plus the hint text prompt.
-
-**Scoring based on power:**
-
-| Power Range | Label | Points Awarded |
-|---|---|---|
-| 1–33 | Weak | 5 pts |
-| 34–66 | Medium | 10 pts |
-| 67–100 | Strong | 20 pts |
-
----
-
-7. Level Design
-
-### Level 1
-- Score target: **100 points**
-- Timer: **5 minutes**
-- Miss/guard penalty: **−10 points**
-- 1 guard, outer patrol path
-
-### Level 2 (unlocked after completing Level 1)
-- Score target: **150 points**
-- Timer: **4 minutes**
-- Miss/guard penalty: **−15 points**
-- 2 guards, outer + inner patrol paths, faster speeds
-
-### Levels 3 and 4
-- Locked placeholder slots visible in the level select screen
-- Not yet implemented — reserved for the 100% milestone
-
-Score cannot go below 0.
-
----
-
-8. Audio
-
-| Label | File | Trigger |
-|---|---|---|
-| Background Music | `retro-game-arcade.mp3` | Loops on game launch |
-| Button Click SFX | `ui-button-click.mp3` | Menu button press |
-| Button Hover SFX | `button-hover.mp3` | Mouse enters button |
-
-All audio volumes are controllable via the Settings screen sliders (Music, Sound, SFX, Sensitivity).
-
----
-
- 9. Screens Implemented
-
-| Screen | Description |
-|---|---|
-| Main Menu | Title, animated parallax background, 6 navigation buttons with hover effects |
-| Character Select | 4 character cards with colored backgrounds, arrow key and mouse navigation, confirm with SPACE or ENTER |
-| Level Select | Shows unlocked/locked levels with padlock icons |
-| Gameplay | Core game with player, guard, can, aiming mechanic, HUD, timer |
-| Pause Menu | Resume, How To Play, Settings, Exit — rendered as overlay on gameplay |
-| Settings | 4 draggable sliders for audio control |
-| How To Play | Game instructions in two-column label/description layout |
-| Credits | Developer names and roles in two-column layout |
-
----
-
-9.1 Character Select Screen (screens/character_select_screen.py)
-
-The character select screen sits between the main menu and level select. The player browses 4 character cards and confirms their choice before entering the game.
-
-**Navigation flow:** Main Menu → Character Select → Level Select → Gameplay
-
-**Key Methods:**
-
-- `__init__(game)` — Initializes fonts and input state flags. Reads the current `selected_character` from `GameManager` so the last selection is remembered if the player returns to this screen.
-- `update(mouse_pos, clicked)` — Handles left/right arrow key navigation (single-step per press using held-key guards), mouse click to select a card, SPACE or ENTER to confirm, and ESC to return to the menu.
-- `_confirm()` — Writes the selected index to `game.manager.selected_character` and transitions to `level_select`.
-- `_card_rect(index)` — Returns the `pygame.Rect` for a given character card, calculated from the card layout constants.
-- `draw(surface)` — Renders the title, all four character cards with colored backgrounds and placeholder silhouettes, a gold highlight border on the selected card, character names below each card, and navigation hint text at the bottom.
-
-**Card Layout Constants:**
-
-| Constant | Value | Purpose |
-|---|---|---|
-| `CARD_W` | 120 | Card width in pixels |
-| `CARD_H` | 150 | Card height in pixels |
-| `GAP` | 20 | Space between cards |
-| `CARD_Y` | 220 | Vertical position of cards |
-
----
-
- 10. Current Progress (50%)
-
-**Completed:**
-- Full menu and navigation system
-- 2 playable levels with difficulty scaling
-- All core game mechanics (movement, aiming, throwing, scoring)
-- Guard AI with waypoint pathfinding
-- Sprite animations for all entities
-- Audio system with settings
-- Level progression and unlock system
-- Fade transitions between screens
-- Pause menu with sub-panels
-- Character select screen with 4 character slots
-- Asset path resolution system (`resource_path.py`) for portable distribution
-
-**Remaining (for 100%):**
-- Levels 3 and 4
-- Sprite sheets for Maria, Bong, and Guard characters
-- Additional SFX: slipper throw sound, can hit sound
-- Missing aesthetic assets: game mode screen, additional background variants
-
----
-
- 11. Portable Asset Resolution (resource_path.py)
-
-All asset file paths in the game are resolved through `resource_path()` rather than using raw relative strings. This ensures the game finds its assets correctly regardless of where the folder is extracted or run from.
+All asset paths are resolved through `resource_path()` which uses `sys.argv[0]` as the base directory. This ensures the game finds its files both in development and when packaged as an executable.
 
 ```python
 def resource_path(relative_path):
@@ -444,22 +305,64 @@ def resource_path(relative_path):
     return os.path.join(base_path, relative_path)
 ```
 
-`sys.argv[0]` always points to `main.py`'s location on disk, so `base_path` is always the project root — not the terminal's current working directory. Every `pygame.image.load()`, `pygame.font.Font()`, and `pygame.mixer.Sound()` call passes its path through this function.
+---
+
+## 8. Challenges Encountered and Solutions
+
+| Challenge | Solution |
+|---|---|
+| Scaling assets across window resize | Render everything to a fixed 800×600 virtual surface, then scale to window each frame |
+| Character sprites of different sizes | Auto-detect frame count from sheet width; scale all characters to a uniform height of 136 px |
+| Maria's throw sprite faces left | Pre-flip the sprite sheet on load so it faces right consistently |
+| Slipper and guard collision accuracy | Use per-pixel `pygame.mask` collision instead of rect-based checks |
+| Guard character unlock requiring Level 4 completion | Achievement system flags `clear_level_4` and grants unlock via `AchievementManager.on_level_cleared()` |
+| Special hit counter persisting across sessions | `special_hits` counter is stored in `profile.json` and incremented on every special hit across any session |
+| BGM not transitioning smoothly between screens | `Game.start_fade()` triggers BGM swaps mid-fade so music changes are not jarring |
+| Exe packaging with loose asset files | `resource_path()` resolves paths relative to the executable rather than the Python source file |
 
 ---
 
- 12. Team
+## 9. Future Improvements
+
+- **Guard (Character 3) Bantay Mode** — Implement the full special skill effect
+- **Slipper passive perks** — Give each slipper a passive stat modifier beyond cosmetics
+- **Game Modes screen** — Currently shows "Coming Soon"; planned modes include Time Attack and Endless
+- **Real SFX** — Replace placeholder audio files for miss, level cleared, and level failed
+- **Mobile port** — Touch input adaptation for Android
+- **Multiplayer / local co-op** — Two players take turns, competing for score on the same can
+- **Expanded levels** — Additional environments beyond the current 4
+
+---
+
+## 10. Team
 
 | Role | Name |
 |---|---|
 | Team Leader | Thrisha Mae Lagbo |
 | Programmer | Elgyin Roei Ruiz |
-| Artist | Janryl Bautista |
-| Asset Designer | Braeden Alfonso |
-| Project Manager | Charles Andrei Cruz |
-| QA | Johannes Afable |
+| Sprite Artist | Janryl Bautista |
+| UI / Level Artist | Braeden Alfonso |
+| SFX Artist | Michael Prande |
+| Also By | Charles Andrei Cruz |
+| Also By | Johannes Afable |
 
+---
 
+## 11. Development Tools and Technologies
+
+| Tool / Technology | Purpose |
+|---|---|
+| Python 3.12 | Core programming language |
+| Pygame 2.6.1 | Game engine (rendering, input, audio) |
+| PyInstaller | Packaging game as a Windows .exe |
+| VS Code / Kiro IDE | Development environment |
+| Figma | UI mockups and sprite layout |
+| Audacity / AudioMass | Audio editing and trimming |
+| Git | Version control |
+
+---
+
+*Document prepared for PUP Parañaque — Final Project Presentation*
 
 </code>
 
@@ -535,7 +438,7 @@ Progress for Special Master is shown in the Achievements screen.
 | 1 | Kalsada (Street) | 1 (rect patrol) | 10 | 100 | No |
 | 2 | Park | 2 (rect patrols) | 8 | 100 | No |
 | 3 | Market | 2 (horizontal sweeps) | 8 | 120 | No |
-| 4 | Field | 3 (top/bottom sweep + vertical) | 6 | 150 | Yes (vertical) |
+| 4 | Field | 3 (top/bottom sweep + vertical) | 6 | 100 | Yes (vertical) |
 
 ---
 
@@ -1226,12 +1129,13 @@ resource_path.py:
 import os
 import sys
 
-
 def resource_path(relative_path):
-    """Resolve asset paths relative to main.py's location, not the working directory."""
-    base_path = os.path.dirname(os.path.abspath(sys.argv[0]))
-    return os.path.join(base_path, relative_path)
+    if getattr(sys, 'frozen', False):
+        base_path = sys._MEIPASS
+    else:
+        base_path = os.path.dirname(os.path.abspath(__file__))
 
+    return os.path.join(base_path, relative_path)
 </code>
 
 scores.json:
@@ -1329,9 +1233,19 @@ class Can(GameObject):
 
     def set_patrol(self, waypoints, speed):
         """Enable vertical (or any) patrol movement for this can."""
-        self._move_waypoints = waypoints
-        self._move_speed     = speed
+        self._move_waypoints           = list(waypoints)
+        self._move_speed               = speed
+        self._move_wp_idx              = 0
+        self._patrol_waypoints_default = list(waypoints)
+        self._patrol_speed_default     = speed
+
+    def clear_patrol(self):
+        """Remove patrol — used when entering a non-moving-can level."""
+        self._move_waypoints = []
+        self._move_speed     = 0.0
         self._move_wp_idx    = 0
+        self._patrol_waypoints_default = []
+        self._patrol_speed_default     = 0.0
 
     def hit(self):
         if not self.knocked:
@@ -1378,12 +1292,17 @@ class Can(GameObject):
         # Reset position
         self.x = float(self._origin_x)
         self.y = float(self._origin_y)
-        # Clear patrol so previous level's movement doesn't carry over
-        self._move_waypoints = []
-        self._move_speed     = 0.0
-        self._move_wp_idx    = 0
         self.rect.x = int(self.x)
         self.rect.y = int(self.y)
+        # Restore patrol if one was set — so moving can resumes after reset
+        if hasattr(self, '_patrol_waypoints_default') and self._patrol_waypoints_default:
+            self._move_waypoints = list(self._patrol_waypoints_default)
+            self._move_speed     = self._patrol_speed_default
+            self._move_wp_idx    = 0
+        else:
+            self._move_waypoints = []
+            self._move_speed     = 0.0
+            self._move_wp_idx    = 0
 
     # ── Method Overriding (GameObject.draw) ─────────────────────────────────
     def draw(self, surface):
@@ -1680,6 +1599,7 @@ class Guard(GameObject):
         self.anim_timer = 0
         self.dir        = 1
         self._move_dir  = "horizontal"
+        self._stun_timer = 0   # frames remaining in stun (0 = not stunned)
 
         def load_sheet(path):
             sheet = pygame.image.load(resource_path(path)).convert_alpha()
@@ -1702,9 +1622,21 @@ class Guard(GameObject):
         # Initialise mask so mask_hit() works before the first update() call
         self.mask = pygame.mask.from_surface(self.frames_walk[0])
 
+    def stun(self, frames: int = 180):
+        """Freeze the guard for the given number of frames."""
+        self._stun_timer = frames
+
+    @property
+    def is_stunned(self) -> bool:
+        return self._stun_timer > 0
+
     # ── Method Overriding (GameObject.update) ───────────────────────────────
     def update(self, player=None, **kwargs):
-        """Override: patrol waypoints and advance animation."""
+        """Override: patrol waypoints and advance animation. Pauses when stunned."""
+        if self._stun_timer > 0:
+            self._stun_timer -= 1
+            return  # frozen
+
         tx, ty = self.WAYPOINTS[self.wp_index]
         cx = self.x + self.frame_w // 2
         dx = tx - cx
@@ -1746,9 +1678,8 @@ class Guard(GameObject):
         
     # ── Method Overriding (GameObject.interact) ──────────────────────────────
     def interact(self, other=None):
-        """Override: guard reacts to being hit by a slipper — stops briefly."""
-        # Placeholder for future stun/reaction behaviour.
-        pass
+        """Override: guard reacts to being hit by a slipper."""
+        pass  # stun is applied externally via guard.stun()
 
     def _draw_path(self, surface):
         pts = self.WAYPOINTS
@@ -2083,16 +2014,26 @@ SLIPPER_SPRITES = {
     3: "ASSETS/SLIPPER/slipper_v4.png",
 }
 
+# v3: first 7 frames = single, frames 7-15 = multiplied
+V3_SINGLE_FRAMES     = 7
+V3_MULTIPLIED_FRAMES = 9   # frames 7..15
+
+# Rocket (v2) speed multiplier when ability is active
+V2_SPEED_BOOST = 2.0
+
+# Stun duration for v4 Pikachu (frames at 60fps)
+V4_STUN_FRAMES = 180  # 3 seconds
+
 
 class Slipper(GameObject):
 
     GRAVITY     = 0.08
     FRAME_DELAY = 4
-    FRAMES      = 4
     SCALE       = 0.8
 
     def __init__(self, x, y, angle, speed, power=50, ground_y=500, slipper_index=0):
         speed = min(speed, 12)
+        self.slipper_index = slipper_index
         self.vel_x    = math.cos(angle) * speed
         self.vel_y    = math.sin(angle) * speed
         self.x        = float(x)
@@ -2102,49 +2043,112 @@ class Slipper(GameObject):
         self.landed   = False
         self.anim_frame = 0
         self.anim_timer = 0
+        self.ability_used = False    # one-use flag per throw
+
+        # Load frames based on slipper type
         sprite_path = SLIPPER_SPRITES.get(slipper_index, SLIPPER_SPRITES[0])
         try:
             sheet = pygame.image.load(resource_path(sprite_path)).convert_alpha()
         except Exception:
             sheet = pygame.image.load(resource_path(SLIPPER_SPRITES[0])).convert_alpha()
-        fw = sheet.get_width() // self.FRAMES
+
         fh = sheet.get_height()
-        sw, sh = int(fw * self.SCALE), int(fh * self.SCALE)
-        self.frames = [
-            pygame.transform.scale(sheet.subsurface((i*fw, 0, fw, fh)), (sw, sh))
-            for i in range(self.FRAMES)
-        ]
-        self.rect = pygame.Rect(int(x), int(y), sw, sh)
+
+        if slipper_index == 2:
+            # v3 Multiplier: detect frames from sheet width
+            total_frames = round(sheet.get_width() / fh)
+            fw = sheet.get_width() // total_frames
+            sw, sh = int(fw * self.SCALE), int(fh * self.SCALE)
+            all_frames = [
+                pygame.transform.scale(sheet.subsurface((i*fw, 0, fw, fh)), (sw, sh))
+                for i in range(total_frames)
+            ]
+            single_count     = min(V3_SINGLE_FRAMES, total_frames)
+            multiplied_count = total_frames - single_count
+            self.frames          = all_frames[:single_count]
+            self.frames_split    = all_frames[single_count:] if multiplied_count > 0 else all_frames[:single_count]
+            self._split_active   = False
+            self._num_frames     = len(self.frames)
+        else:
+            # All other slippers: 4 frames
+            total_frames = 4
+            fw = sheet.get_width() // total_frames
+            sw, sh = int(fw * self.SCALE), int(fh * self.SCALE)
+            self.frames = [
+                pygame.transform.scale(sheet.subsurface((i*fw, 0, fw, fh)), (sw, sh))
+                for i in range(total_frames)
+            ]
+            self._num_frames = total_frames
+
+        self.rect = pygame.Rect(int(x), int(y), self.frames[0].get_width(), self.frames[0].get_height())
         self.mask = pygame.mask.from_surface(self.frames[0])
-        
+
+    # ── Ability activation ────────────────────────────────────────────────────
+
+    def activate_ability(self, guards=None):
+        """
+        Activate this slipper's one-time ability.
+        v2: boost speed.
+        v3: switch to split frames (caller also spawns extra slippers).
+        v4: mark for pikachu stun (stun applied in gameplay on guard hit).
+        Returns True if ability was activated.
+        """
+        if self.ability_used:
+            return False
+        self.ability_used = True
+
+        if self.slipper_index == 1:  # Rocket — speed boost
+            self.vel_x *= V2_SPEED_BOOST
+
+        elif self.slipper_index == 2:  # Multiplier — switch frames
+            self._split_active = True
+            self.anim_frame    = 0
+            self.anim_timer    = 0
+            self._num_frames   = len(self.frames_split)
+
+        # v4 Pikachu: stun is applied in gameplay when this slipper hits a guard
+        return True
+
+    @property
+    def is_pikachu(self):
+        return self.slipper_index == 3
+
+    @property
+    def split_just_activated(self):
+        """True on the frame split is activated — gameplay uses this to spawn extra slippers."""
+        return self.slipper_index == 2 and self.ability_used and self._split_active
+
     # ── Method Overriding (GameObject.update) ───────────────────────────────
     def update(self, **kwargs):
         """Override: apply gravity, advance position, animate rotation."""
         self.anim_timer += 1
         if self.anim_timer >= self.FRAME_DELAY:
             self.anim_timer = 0
-            self.anim_frame = (self.anim_frame + 1) % self.FRAMES
+            self.anim_frame = (self.anim_frame + 1) % self._num_frames
         if self.landed:
             return
         self.vel_y += self.GRAVITY
         self.x += self.vel_x
         self.y += self.vel_y
         if self.y >= self.ground_y:
-            self.y      = self.ground_y
-            self.vel_x  = 0
-            self.vel_y  = 0
+            self.y     = self.ground_y
+            self.vel_x = 0
+            self.vel_y = 0
             self.landed = True
         self.rect.x = int(self.x)
         self.rect.y = int(self.y)
-        self.mask = pygame.mask.from_surface(self.frames[self.anim_frame])
+        cur_frames = self.frames_split if (self.slipper_index == 2 and getattr(self, '_split_active', False)) else self.frames
+        self.mask = pygame.mask.from_surface(cur_frames[self.anim_frame])
+
     # ── Method Overriding (GameObject.draw) ─────────────────────────────────
     def draw(self, surface):
         """Override: render current animation frame."""
-        surface.blit(self.frames[self.anim_frame], (self.rect.x, self.rect.y))
+        cur_frames = self.frames_split if (self.slipper_index == 2 and getattr(self, '_split_active', False)) else self.frames
+        surface.blit(cur_frames[self.anim_frame], (self.rect.x, self.rect.y))
 
     # ── Method Overriding (GameObject.interact) ──────────────────────────────
     def interact(self, other=None):
-        """Override: slipper 'interacts' with whatever it hits — marks as landed."""
+        """Override: slipper hits something — marks as landed."""
         self.landed = True
         self.vel_x  = 0
         self.vel_y  = 0
@@ -2521,29 +2525,32 @@ class GameManager:
 
     def __init__(self):
         raw = load_profile() or {}
-        # merge defaults so missing keys are always present
+        # Merge defaults so missing keys are always present
         self.profile = {**DEFAULT_PROFILE, **raw}
         self.profile["achievements"] = {
             **DEFAULT_PROFILE["achievements"],
             **raw.get("achievements", {}),
         }
-        # ensure special_hits counter exists
         self.profile.setdefault("special_hits", 0)
+
         self.game_state     = "intro"
         self.previous_state = "menu"
         self.current_level  = 1
-        self.unlocked_levels = set(self.profile.get("unlocked_levels", [1])) or {1}
+        self.unlocked_levels     = set(self.profile.get("unlocked_levels",     [1])) or {1}
+        self.unlocked_characters = set(self.profile.get("unlocked_characters", [0])) or {0}
+        self.unlocked_slippers   = set(self.profile.get("unlocked_slippers",   [0])) or {0}
+
         self.settings = {
             "MUSIC": 100, "SOUND": 100, "SFX": 100,
             "LANGUAGE": "EN",
         }
-        self.score     = 0
-        self.game_over = False
-        self.unlocked_characters = set(self.profile.get("unlocked_characters", [0])) or {0}
-        self.selected_character = 0  # 0=Jose, 1=Bong, 2=Maria, 3=Guard
-        self.unlocked_slippers  = set(self.profile.get("unlocked_slippers", [0])) or {0}
-        self.selected_slipper   = 0  # 0=default, 1=v2, 2=v3, 3=v4
-        self.player_name = ""
+
+        self.score              = 0   # int mirror used by legacy code
+        self.selected_character = 0   # 0=Jose, 1=Bong, 2=Maria
+        self.selected_slipper   = 0   # 0=default, 1=v2, 2=v3, 3=v4
+        self.player_name        = ""
+
+    # ── Persistence ──────────────────────────────────────────────────────────
 
     def save_profile(self):
         self.profile["unlocked_levels"]     = sorted(self.unlocked_levels)
@@ -2551,8 +2558,10 @@ class GameManager:
         self.profile["unlocked_slippers"]   = sorted(self.unlocked_slippers)
         save_profile(self.profile)
 
-    def unlock_level(self, lvl):
-        self.unlocked_levels.add(lvl)
+    # ── Unlock helpers ───────────────────────────────────────────────────────
+
+    def unlock_level(self, lvl: int):
+        self.unlocked_levels.add(int(lvl))
         self.save_profile()
 
     def unlock_character(self, character_index: int):
@@ -2569,30 +2578,14 @@ class GameManager:
     def is_slipper_unlocked(self, slipper_index: int) -> bool:
         return int(slipper_index) in self.unlocked_slippers
 
-    def change_state(self, new_state):
-        """Change the active screen/game state."""
+    # ── State ────────────────────────────────────────────────────────────────
+
+    def change_state(self, new_state: str):
         self.game_state = new_state
 
-    def reset_game(self):
-        """Reset all gameplay variables for a new game."""
-        self.score = 0
-        self.current_level = 1
-        self.game_over = False
+    # ── Quit ─────────────────────────────────────────────────────────────────
 
-    def add_score(self, amount=1):
-        """Increase score when the player hits the can."""
-        self.score += amount
-
-    def next_level(self):
-        """Advance to the next level."""
-        self.level += 1
-
-    def set_game_over(self):
-        """Mark the game as over."""
-        self.game_over = True
-        
     def end_game(self):
-        """Quit Pygame and close the game."""
         pygame.quit()
         sys.exit()
 
@@ -3407,7 +3400,7 @@ import math
 from entities.player import Player
 from entities.guard import Guard
 from entities.can import Can
-from entities.slipper import Slipper
+from entities.slipper import Slipper, V4_STUN_FRAMES
 from entities.score import Score
 from entities.character import character_from_index
 from entities.duck_typing import render_all
@@ -3438,6 +3431,9 @@ class GameplayScreen:
         self.special_active = False
         self.committed_points = 0
         self._e_held = False
+        self._g_held = False          # G key for slipper ability
+        self._slipper_ability_used = False  # one use per level
+        self._extra_slippers = []     # v3 split extra projectiles
         self.setup_level()
 
     def setup_level(self):
@@ -3452,10 +3448,14 @@ class GameplayScreen:
         self.special_active = False
         self.committed_points = 0
         self.throws_remaining = self.LEVEL_THROWS.get(lvl, 10)
+        self._g_held = False
+        self._slipper_ability_used = False
+        self._extra_slippers = []
 
         if lvl == 1:
             self.score       = Score(0, 100)
             self.miss_penalty = 10
+            self.can.clear_patrol()
             self.guards = [Guard(500, 400, [
                 (680, 370), (680, 540), (380, 540), (380, 370)
             ], speed=1.8)]
@@ -3463,6 +3463,7 @@ class GameplayScreen:
         elif lvl == 2:
             self.score       = Score(0, 100)
             self.miss_penalty = 15
+            self.can.clear_patrol()
             self.guards = [
                 Guard(500, 400, [
                     (760, 370), (760, 540), (380, 540), (380, 370)
@@ -3475,36 +3476,30 @@ class GameplayScreen:
         elif lvl == 3:
             self.score       = Score(0, 120)
             self.miss_penalty = 20
+            self.can.clear_patrol()
+            # 2 guards left of the can, oscillating in opposite directions
             self.guards = [
-                Guard(500, 380, [
-                    (700, 380), (700, 420), (420, 420), (420, 380)
-                ], speed=2.6),
-                Guard(560, 500, [
-                    (700, 480), (700, 540), (420, 540), (420, 480)
-                ], speed=2.4),
+                Guard(430, 300, [          # front guard: starts top, goes down
+                    (430, 300), (430, 580)
+                ], speed=2.2),
+                Guard(480, 580, [          # back guard: starts bottom, goes up
+                    (480, 580), (480, 300)
+                ], speed=2.2),
             ]
 
         elif lvl == 4:
-            self.score       = Score(0, 150)
+            self.score       = Score(0, 100)
             self.miss_penalty = 25
             # Can moves vertically between two points
             self.can.set_patrol(
                 waypoints=[(540, 360), (540, 480)],
                 speed=1.2,
             )
+            # 1 fast guard patrolling vertically in front of the can
             self.guards = [
-                # Guard sweeps horizontally at top
-                Guard(440, 370, [
-                    (700, 360), (700, 400), (420, 400), (420, 360)
-                ], speed=3.2),
-                # Guard sweeps horizontally at bottom
-                Guard(440, 490, [
-                    (700, 480), (700, 520), (420, 520), (420, 480)
-                ], speed=3.0),
-                # Guard patrols vertically on the right side
-                Guard(680, 400, [
-                    (680, 360), (680, 520), (720, 520), (720, 360)
-                ], speed=2.8),
+                Guard(530, 360, [
+                    (530, 360), (530, 520)
+                ], speed=3.8),
             ]
 
         # keep manager in sync; health = score
@@ -3613,14 +3608,46 @@ class GameplayScreen:
         self.player.move(keys)
         self.power_meter.update()
 
+        # ── E key: arm/disarm character special ──────────────────────────────
         if keys[pygame.K_e] and not self._e_held:
             if self.power_meter.phase is None and self.slipper is None:
-                # Only allow arming if the character has uses remaining
                 if not self.special_armed and self.character.uses_remaining > 0:
                     self.special_armed = True
                 elif self.special_armed:
-                    self.special_armed = False  # disarm if already armed
+                    self.special_armed = False
         self._e_held = keys[pygame.K_e]
+
+        # ── G key: activate slipper ability ──────────────────────────────────
+        slipper_idx = self.game.manager.selected_slipper
+        slip_idx = slipper_idx  # alias used below in SPACE block
+        if keys[pygame.K_g] and not self._g_held:
+            if not self._slipper_ability_used and slipper_idx > 0:
+                if self.slipper and not self.slipper.landed:
+                    # Activate ability on the in-flight slipper (v2/v3/v4)
+                    activated = self.slipper.activate_ability(guards=self.guards)
+                    if activated:
+                        self._slipper_ability_used = True
+                        if slipper_idx == 2:
+                            # v3 split: spawn 2 extra slippers at spread angles
+                            spread = 0.25
+                            angle_main = math.atan2(self.slipper.vel_y, self.slipper.vel_x)
+                            base_speed = math.hypot(self.slipper.vel_x, self.slipper.vel_y)
+                            for delta in (-spread, spread):
+                                extra = Slipper(
+                                    self.slipper.x, self.slipper.y,
+                                    angle_main + delta, base_speed, self.slipper.power,
+                                    ground_y=self.slipper.ground_y,
+                                    slipper_index=2,
+                                )
+                                extra.ability_used  = True
+                                extra._split_active = True
+                                extra._num_frames   = len(extra.frames_split)
+                                extra.anim_frame    = 0
+                                self._extra_slippers.append(extra)
+                elif self.power_meter.phase is None and self.slipper is None:
+                    # Arm for next throw (v2 arms before throw)
+                    self._slipper_ability_armed = not getattr(self, '_slipper_ability_armed', False)
+        self._g_held = keys[pygame.K_g]
 
         space_down = keys[pygame.K_SPACE]
         if space_down and not self._space_held:
@@ -3656,6 +3683,11 @@ class GameplayScreen:
                         ground_y=max(self.player.y + self.player.frame_h - self.player.FOOT_OFFSET, self.can.y + self.can.rect.height),
                         slipper_index=self.game.manager.selected_slipper,
                     )
+                    # Apply v2 rocket ability if armed before throw
+                    if slip_idx == 1 and getattr(self, '_slipper_ability_armed', False) and not self._slipper_ability_used:
+                        self.slipper.activate_ability()
+                        self._slipper_ability_used = True
+                        self._slipper_ability_armed = False
         self._space_held = space_down
 
         if self.slipper:
@@ -3687,9 +3719,20 @@ class GameplayScreen:
                     if self.game.manager.player_name:
                         save_score(self.game.manager.player_name, int(self.score))
             else:
-                hit_guard = any(mask_hit(self.slipper, g) for g in self.guards)
+                hit_guard = False
+                stunned_by_pikachu = False
+                for g in self.guards:
+                    if mask_hit(self.slipper, g):
+                        hit_guard = True
+                        # v4 Pikachu: stun guard, no miss penalty
+                        if self.slipper.is_pikachu and not self._slipper_ability_used:
+                            g.stun(V4_STUN_FRAMES)
+                            self._slipper_ability_used = True
+                            stunned_by_pikachu = True
+                        break
                 if hit_guard:
-                    self._apply_miss_penalty()
+                    if not stunned_by_pikachu:
+                        self._apply_miss_penalty()
                     self.slipper = None
                 elif self.slipper.landed:
                     self._apply_miss_penalty()
@@ -3697,10 +3740,36 @@ class GameplayScreen:
                 elif self.slipper.x > 850 or self.slipper.x < -20:
                     self.slipper = None
                     self.special_active = False
-            # check if out of throws after slipper resolves
-            if self.slipper is None and self.throws_remaining <= 0 and self.state == "playing":
-                self.state = "gameover"
-                self.game.assets.sfx_level_failed.play()
+
+        # Update and check extra slippers (v3 split)
+        for es in self._extra_slippers[:]:
+            es.update()
+            if not es.landed:
+                def mask_hit(a, b):
+                    offset = (b.rect.x - a.rect.x, b.rect.y - a.rect.y)
+                    return a.mask.overlap(b.mask, offset) is not None
+                if mask_hit(es, self.can) and not self.can.knocked:
+                    self.score += self.committed_points
+                    self.game.manager.score = int(self.score)
+                    self.character.sync_health(int(self.score))
+                    self.game.assets.sfx_can_hit.play()
+                    self.can.hit()
+                    self._extra_slippers.clear()
+                    if self.score.is_complete():
+                        self.state = "complete"
+                        self.game.assets.sfx_level_cleared.play()
+                        self.game.manager.unlock_level(self.game.manager.current_level + 1)
+                        self.game.achievements.on_level_cleared(self.game.manager.current_level)
+                        if self.game.manager.player_name:
+                            save_score(self.game.manager.player_name, int(self.score))
+                    break
+                elif es.landed or es.x > 850 or es.x < -20:
+                    self._extra_slippers.remove(es)
+
+        # check if out of throws after all slippers resolve
+        if self.slipper is None and not self._extra_slippers and self.throws_remaining <= 0 and self.state == "playing":
+            self.state = "gameover"
+            self.game.assets.sfx_level_failed.play()
         self.can.update()
 
         if self.can.knocked and self.can.anim_frame == self.can.KNOCK_FRAMES - 1:
@@ -3721,6 +3790,9 @@ class GameplayScreen:
         # Duck typing: render_all() calls .draw() on each entity regardless of type
         render_all(self.guards, surface)
         render_all([self.can, self.slipper, self.player], surface)
+        # Render extra slippers (v3 split)
+        for es in self._extra_slippers:
+            es.draw(surface)
 
         px = self.player.x + self.player.frame_w // 2
         py = self.player.y + self.player.frame_h // 2
@@ -3739,6 +3811,16 @@ class GameplayScreen:
             self._outlined_text(font, uses_str, (140, 200, 140), surface, (10, 46))
         else:
             self._outlined_text(font, "NO SPECIAL LEFT", (120, 120, 120), surface, (10, 46))
+
+        # Slipper ability HUD (G key, v2/v3/v4 only)
+        slip_idx = self.game.manager.selected_slipper
+        if slip_idx > 0:
+            if self._slipper_ability_used:
+                self._outlined_text(font, "SLIPPER ABILITY USED", (100, 100, 100), surface, (10, 68))
+            elif getattr(self, '_slipper_ability_armed', False):
+                self._outlined_text(font, "SLIPPER ARMED (G)", (80, 220, 255), surface, (10, 68))
+            else:
+                self._outlined_text(font, "SLIPPER ABILITY (G)", (100, 180, 255), surface, (10, 68))
         throws_color = (255, 80, 80) if self.throws_remaining <= 3 else (255, 255, 255)
         throws_str = f"THROWS: {self.throws_remaining}"
         throws_surf = font.render(throws_str, True, throws_color)
@@ -4862,28 +4944,6 @@ class SettingsScreen:
         lang_surf = a.settings_font.render(lang_label, True, (255, 255, 255))
         surface.blit(lang_surf, lang_surf.get_rect(center=self.lang_btn_rect.center))
         pygame.draw.rect(surface, (180, 140, 80), self.lang_btn_rect, 2)
-
-</code>
-
-ui\button.py:
-<code>
-import pygame
-class Button:
-    def __init__(self, x, y, text, font):
-        self.text = text
-        self.font = font
-        self.image = font.render(text, True, (255,255,255))
-        self.rect = self.image.get_rect(center=(x,y))
-
-    def draw(self, surface, mouse_pos, clicked):
-        hovered = self.rect.collidepoint(mouse_pos)
-        color = (255,255,0) if hovered else (255,255,255)
-        text = self.font.render(self.text, True, color)
-        surface.blit(text, self.rect)
-        
-        if hovered and clicked:
-            return True
-        return False
 
 </code>
 

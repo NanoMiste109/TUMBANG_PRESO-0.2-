@@ -5,9 +5,9 @@ from resource_path import resource_path
 # Maps achievement ID → (title, description, reward_text)
 ACHIEVEMENT_DEFS = [
     ("clear_level_1", "Barangay Rookie",        "Clear Level 1",                            "Unlocks: Bong"),
-    ("clear_level_2", "Street Legend",          "Clear Level 2",                            "Unlocks: Maria + Street Slipper"),
-    ("clear_level_4", "Tumbang Preso Master",   "Clear Level 4",                            "Unlocks: Guard + Champion Slipper"),
-    ("slipper_v3",    "Special Master",         "Hit the can with a special 3 times",       "Unlocks: Pro Slipper"),
+    ("clear_level_2", "Street Legend",          "Clear Level 2",                            "Unlocks: Maria + Rocket Slipper"),
+    ("clear_level_4", "Tumbang Preso Master",   "Clear Level 4",                            "Unlocks: Bolt Slipper"),
+    ("slipper_v3",    "Special Master",         "Hit the can with a special 3 times",       "Unlocks: Triple Slipper"),
 ]
 
 
@@ -18,7 +18,7 @@ class AchievementScreen:
         self.assets = game.assets
 
         board_src = pygame.image.load(resource_path("ASSETS/MENU/board.png")).convert_alpha()
-        bw = int(board_src.get_width()  * 0.6 * 0.78)
+        bw = int(board_src.get_width()  * 0.6 * 1.05)
         bh = int(board_src.get_height() * 0.6 * 1.3)  # taller board
         self.board = pygame.transform.scale(board_src, (bw, bh))
         self.board_rect = self.board.get_rect(center=(400, 360))

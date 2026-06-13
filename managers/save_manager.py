@@ -2,8 +2,8 @@ import json
 import os
 from resource_path import resource_path
 
-SAVE_FILE = resource_path("scores.json")
-PROFILE_FILE = resource_path("profile.json")
+SAVE_FILE    = resource_path("scores.json")
+PROFILES_DIR = resource_path("profiles")
 
 DEFAULT_PROFILE = {
     "achievements": {
@@ -19,6 +19,12 @@ DEFAULT_PROFILE = {
     "unlocked_slippers":   [0],
     "special_hits":        0,
 }
+
+
+def _profile_path(name: str) -> str:
+    os.makedirs(PROFILES_DIR, exist_ok=True)
+    safe = "".join(c for c in name.lower().strip() if c.isalnum() or c in "-_")
+    return os.path.join(PROFILES_DIR, f"{safe}.json")
 
 
 def load_scores():
@@ -53,27 +59,32 @@ def _write(scores):
         json.dump(scores, f, indent=2)
 
 
-def load_profile():
-    """Load persistent profile (unlocks/achievements)."""
-    if not os.path.exists(PROFILE_FILE):
+def load_profile(name: str = ""):
+    """Load persistent profile for the given player name."""
+    if not name:
+        return {}
+    path = _profile_path(name)
+    if not os.path.exists(path):
         return {}
     try:
-        with open(PROFILE_FILE, "r") as f:
+        with open(path, "r") as f:
             return json.load(f) or {}
     except Exception:
         return {}
 
 
-def save_profile(profile):
-    """Persist profile to disk."""
+def save_profile(profile: dict, name: str = ""):
+    """Persist profile to disk for the given player name."""
+    if not name:
+        return
+    path = _profile_path(name)
     try:
-        with open(PROFILE_FILE, "w") as f:
+        with open(path, "w") as f:
             json.dump(profile, f, indent=2)
     except Exception:
-        # best-effort: game should still run even if save fails
         pass
 
 
-def reset_profile() -> None:
-    """Overwrite profile.json with the canonical default profile."""
-    save_profile(DEFAULT_PROFILE)
+def reset_profile(name: str = "") -> None:
+    """Overwrite a player's profile with the canonical default."""
+    save_profile(DEFAULT_PROFILE, name)

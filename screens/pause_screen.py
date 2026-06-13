@@ -179,9 +179,12 @@ class PauseScreen:
         for i, item in enumerate(self.ITEMS):
             center = (cx, self._btn_start_y + i * self.spacing)
             normal = self.assets.pause_normal[item]
-            hovered = normal.get_rect(center=center).collidepoint(mx, my)
-            img = self.assets.pause_hovered[item] if hovered else normal
-            surface.blit(img, img.get_rect(center=center))
+            is_hovered = normal.get_rect(center=center).collidepoint(mx, my)
+            if is_hovered:
+                hov = self.assets.pause_hovered[item]
+                surface.blit(hov, hov.get_rect(center=center))
+            else:
+                surface.blit(normal, normal.get_rect(center=center))
 
     def _draw_howtoplay(self, surface):
         cx = self.board_rect.centerx

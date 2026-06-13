@@ -11,12 +11,18 @@ CHARACTERS = [
     {"name": "MARIA"},
 ]
 
-SLIPPER_NAMES = ["Default", "Street", "Pro", "Champion"]
+SLIPPER_NAMES = ["Default", "Rocket", "Triple", "Bolt"]
 SLIPPER_PATHS = [
     "ASSETS/SLIPPER/slipper.png",
     "ASSETS/SLIPPER/slipper_v2.png",
     "ASSETS/SLIPPER/slipper_v3.png",
     "ASSETS/SLIPPER/slipper_v4.png",
+]
+SLIPPER_DESCS = [
+    "No special ability.",
+    "Press G mid-flight to\ndouble the slipper's speed.",
+    "Press G mid-flight to\nspawn 2 extra slippers\nin spread directions.",
+    "Hit a guard to stun them\nfor 3 seconds instead of\ntaking a miss penalty.",
 ]
 
 # Normal card dimensions
@@ -109,16 +115,14 @@ class CharacterSelectScreen:
         # Slipper selector — small previews below cards
         self._slipper_font  = pygame.font.Font(resource_path("ASSETS/ThaleahFat/ThaleahFat.ttf"), 13)
         self._slipper_imgs  = []
-        SLIP_SIZE = 40
+        SLIP_SIZE = 40  # fit inside the 44px circle
         for path in SLIPPER_PATHS:
             try:
                 img = pygame.image.load(resource_path(path)).convert_alpha()
-                # Take first frame (each slipper sheet has FRAMES=4)
-                fw = img.get_width() // 4
                 fh = img.get_height()
+                fw = fh  # square frame
                 frame = img.subsurface((0, 0, fw, fh)).copy()
-                scale = min(SLIP_SIZE / fw, SLIP_SIZE / fh)
-                frame = pygame.transform.scale(frame, (int(fw * scale), int(fh * scale)))
+                frame = pygame.transform.scale(frame, (SLIP_SIZE, SLIP_SIZE))
             except Exception:
                 frame = pygame.Surface((SLIP_SIZE, SLIP_SIZE), pygame.SRCALPHA)
             self._slipper_imgs.append(frame)
@@ -366,7 +370,9 @@ class CharacterSelectScreen:
             pygame.draw.circle(surface, border_col, (sx, SLIP_Y), 22, 2)
 
             if unlocked:
-                surface.blit(img, img.get_rect(center=(sx, SLIP_Y)))
+                # index 1 (Rocket) sprite sits low in the frame — nudge it up
+                y_offset = -4 if i == 1 else 0
+                surface.blit(img, img.get_rect(center=(sx, SLIP_Y + y_offset)))
             else:
                 # Padlock for locked slippers
                 pl = pygame.transform.scale(self.padlock, (28, 28))
@@ -380,3 +386,22 @@ class CharacterSelectScreen:
             name_col = (255, 255, 255) if unlocked else (100, 100, 100)
             name_s = self._outlined(self._slipper_font, SLIPPER_NAMES[i], name_col)
             surface.blit(name_s, name_s.get_rect(center=(sx, SLIP_Y + 28)))
+
+        # Slipper ability tooltip on hover
+        if self._hovered_slipper >= 0:
+            hi = self._hovered_slipper
+            is_unlocked = self.game.manager.is_slipper_unlocked(hi)
+            lines = SLIPPER_DESCS[hi].split("\n") if is_unlocked else ["Clear the required level", "to unlock this slipper."]
+            line_h = self._slipper_font.get_height() + 2
+            tip_w = max(self._slipper_font.size(l)[0] for l in lines) + 16
+            tip_h = line_h * len(lines) + 10
+            sx = start_x + hi * SLIP_GAP
+            tip_x = max(4, min(sx - tip_w // 2, 800 - tip_w - 4))
+            tip_y = SLIP_Y - 32 - tip_h
+            bg = pygame.Surface((tip_w, tip_h), pygame.SRCALPHA)
+            bg.fill((0, 0, 0, 190))
+            surface.blit(bg, (tip_x, tip_y))
+            pygame.draw.rect(surface, (180, 140, 80), (tip_x, tip_y, tip_w, tip_h), 1)
+            for li, line in enumerate(lines):
+                ls = self._outlined(self._slipper_font, line, (220, 220, 220))
+                surface.blit(ls, ls.get_rect(centerx=tip_x + tip_w // 2, y=tip_y + 5 + li * line_h))

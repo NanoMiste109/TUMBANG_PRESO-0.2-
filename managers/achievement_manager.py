@@ -68,6 +68,13 @@ class AchievementManager:
         for a in self.defs:
             prof["achievements"].setdefault(a, False)
 
+        # Repair: if level-2 was already cleared but slipper 1 wasn't saved, grant it now
+        if prof["achievements"].get("clear_level_2") and 1 not in self.mgr.unlocked_slippers:
+            self.mgr.unlock_slipper(1)
+        # Repair: if level-4 was already cleared but slipper 3 wasn't saved, grant it now
+        if prof["achievements"].get("clear_level_4") and 3 not in self.mgr.unlocked_slippers:
+            self.mgr.unlock_slipper(3)
+
     def is_unlocked(self, achievement_id: str) -> bool:
         return bool(self.mgr.profile.get("achievements", {}).get(achievement_id, False))
 
@@ -94,9 +101,13 @@ class AchievementManager:
         elif level == 2:
             self.unlock("clear_level_2")
             self.unlock("slipper_v2")   # same condition
+            # Always ensure slipper 1 is unlocked when level 2 is cleared
+            self.mgr.unlock_slipper(1)
         elif level == 4:
             self.unlock("clear_level_4")
             self.unlock("slipper_v4")   # same condition
+            # Always ensure slipper 3 is unlocked when level 4 is cleared
+            self.mgr.unlock_slipper(3)
 
     def on_special_hit(self):
         """Call when the player hits the can with a special active."""

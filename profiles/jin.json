@@ -3,7 +3,7 @@
     "clear_level_1": true,
     "clear_level_2": true,
     "clear_level_4": true,
-    "slipper_v2": false,
+    "slipper_v2": true,
     "slipper_v3": true,
     "slipper_v4": true
   },
@@ -26,5 +26,5 @@
     2,
     3
   ],
-  "special_hits": 6
+  "special_hits": 3
 }
